@@ -1,0 +1,30 @@
+{% if dataclasses -%}
+from dataclasses import dataclass
+{% endif -%}
+{% if enums -%}
+from enum import Enum
+{% endif -%}
+{% if need_typing -%}
+from typing import
+{%- if need_typing.any %} Any{% if need_typing.optional %},{% endif %}{% endif -%}
+{%- if need_typing.optional %} Optional{% endif -%}
+{% endif %}
+
+{% for enum in enums %}
+class {{enum.name}}(Enum):
+{%- for element in enum.elements %}
+    {{element.name}} = {{element.value}}
+{%- endfor %}
+
+{% endfor -%}
+{% for dataclass in dataclasses %}
+@dataclass
+class {{dataclass.name}}():
+{%- for element in dataclass.required_elements %}
+    {{element.name}}{% if element.type %}: {{element.type}}{% endif %}
+{%- endfor -%}
+{%- for element in dataclass.optional_elements %}
+    {{element.name}}{% if element.type %}: Optional[{{element.type}}] = None{% endif %}
+{%- endfor %}
+
+{% endfor %}
