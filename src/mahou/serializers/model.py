@@ -1,3 +1,5 @@
+import re
+
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from mahou.models.openapi import (ArrayType, ComplexSchema, EnumSchema, PrimitiveType, Schema,
@@ -7,6 +9,8 @@ from mahou.serializers.abc import Serializer
 
 class OpenAPIModelSerializer(Serializer[list[Schema]]):
     def serialize(self, input: list[Schema]) -> str:
+        enum_forbidden_chars = re.compile('[^a-zA-Z0-9_]')
+
         enums = []
         dataclasses = []
         need_typing = {}
@@ -14,8 +18,8 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
         for schema in input:
             if isinstance(schema, EnumSchema):
                 enum = {'name': schema.title, 'elements': []}
-                enum['elements'] = [{'name': n, 'value': v}
-                                    for (v, n) in enumerate(schema.enum_values)]
+                enum['elements'] = [{'name': enum_forbidden_chars.sub('_', v), 'value': f"'{v}'"}
+                                    for v in schema.enum_values]
                 if enum['name'] not in [e['name'] for e in enums]:
                     enums.append(enum)
             elif isinstance(schema, ComplexSchema):
