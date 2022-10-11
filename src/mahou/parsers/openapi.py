@@ -1,11 +1,14 @@
 import json
 
-from mahou.models.openapi import (ArrayType, ComplexSchema, PrimitiveType, SimpleSchema,
+from mahou.models.openapi import (ArrayType, ComplexSchema, Parameter, ParameterPosition, Path, PrimitiveType, Request, SimpleSchema,
                                   EnumSchema, Schema, Server, UnionType)
 from mahou.parsers.abc import Parser
 
 
 class OpenAPIParser(Parser[Server]):
+    def __init__(self):
+        self.parsed_schemas = {}
+
     def parse(self, input: str) -> Server:
         return self.server_from_json(json.loads(input))
 
@@ -17,66 +20,129 @@ class OpenAPIParser(Parser[Server]):
                         schemas={})
 
         server.schemas = self.schemas_from_json(input['components']['schemas'])
+        server.paths = self.paths_from_json(input['paths'])
 
         return server
 
     def schemas_from_json(self, input: dict) -> dict[str, Schema]:
-        schemas = {}
-
-        def schema_from_json(json_schema: dict) -> Schema:
-            if 'enum' in json_schema:
-                return EnumSchema(title=json_schema['title'],
-                                  description=json_schema['description'],
-                                  enum_values=json_schema['enum'])
-            else:
-                schema = ComplexSchema(title=json_schema['title'],
-                                       properties={},
-                                       required_properties=[])
-                if 'required' in json_schema:
-                    schema.required_properties = json_schema['required']
-                for name, json_property in json_schema['properties'].items():
-                    if '$ref' in json_property:
-                        ref_schema_title = json_property['$ref'].split('/')[-1]
-                        if ref_schema_title in schemas:
-                            property = schemas[ref_schema_title]
-                        else:
-                            property = schema_from_json(input[ref_schema_title])
-                    else:
-                        if 'type' in json_property:
-                            json_type = json_property['type']
-                            if json_type == 'array':
-                                json_items = json_property['items']
-                                if '$ref' in json_items:
-                                    ref_schema_title = (json_items['$ref'].split('/')[-1])
-                                    if ref_schema_title in schemas:
-                                        items = schemas[ref_schema_title]
-                                    else:
-                                        items = schema_from_json(input[ref_schema_title])
-                                else:
-                                    any_of = []
-                                    for t in json_items['anyOf']:
-                                        any_of.append(self.primitive_type_from_json(t['type']))
-                                    items = UnionType(any_of=any_of)
-
-                                property_type = ArrayType(items=items)
-                            else:
-                                property_type = self.primitive_type_from_json(json_type)
-                        else:
-                            property_type = PrimitiveType.ANY
-                        property = SimpleSchema(title=json_property['title'],
-                                                type=property_type)
-                        if 'format' in json_property:
-                            property.format = json_property['format']
-
-                    schema.properties[name] = property
-
-                return schema
-
+        self.parsed_schemas = {}
         for name, json_schema in input.items():
-            if name not in schemas:
-                schemas[name] = schema_from_json(json_schema)
+            if name not in self.parsed_schemas:
+                self.parsed_schemas[name] = self.schema_from_json(json_schema, input)
 
-        return schemas
+        return self.parsed_schemas
+
+    def schema_from_json(self, json_schema: dict, input) -> Schema:
+        if 'enum' in json_schema:
+            return EnumSchema(title=json_schema['title'],
+                              description=json_schema['description'],
+                              enum_values=json_schema['enum'])
+        else:
+            schema = ComplexSchema(title=json_schema['title'],
+                                   properties={},
+                                   required_properties=[])
+            if 'required' in json_schema:
+                schema.required_properties = json_schema['required']
+            for name, json_property in json_schema['properties'].items():
+                if '$ref' in json_property:
+                    ref_schema_title = json_property['$ref'].split('/')[-1]
+                    if ref_schema_title in self.parsed_schemas:
+                        property = self.parsed_schemas[ref_schema_title]
+                    else:
+                        property = self.schema_from_json(input[ref_schema_title], input)
+                else:
+                    if 'type' in json_property:
+                        json_type = json_property['type']
+                        if json_type == 'array':
+                            json_items = json_property['items']
+                            if '$ref' in json_items:
+                                ref_schema_title = (json_items['$ref'].split('/')[-1])
+                                if ref_schema_title in self.parsed_schemas:
+                                    items = self.parsed_schemas[ref_schema_title]
+                                else:
+                                    items = self.schema_from_json(input[ref_schema_title], input)
+                            else:
+                                any_of = []
+                                for t in json_items['anyOf']:
+                                    any_of.append(self.primitive_type_from_json(t['type']))
+                                items = UnionType(any_of=any_of)
+
+                            property_type = ArrayType(items=items)
+                        else:
+                            property_type = self.primitive_type_from_json(json_type)
+                    else:
+                        property_type = PrimitiveType.ANY
+                    property = SimpleSchema(title=json_property['title'],
+                                            type=property_type)
+                    if 'format' in json_property:
+                        property.format = json_property['format']
+
+                schema.properties[name] = property
+
+            return schema
+
+    def paths_from_json(self, input: dict) -> list[Path]:
+        paths = []
+        for endpoint, requests in input.items():
+            paths.append(Path(endpoint=endpoint, requests=self.requests_from_json(requests)))
+
+        return paths
+
+    def requests_from_json(self, input: dict) -> list[Request]:
+        requests = []
+        for request_method, request_json in input.items():
+            request = Request(method=request_method, summary=request_json['summary'],
+                              operation_id=request_json['operationId'],
+                              parameters=self.request_parameters_from_json(
+                                  request_json['parameters']
+                                  if 'parameters' in request_json
+                                  else {}
+                              ))
+            requests.append(request)
+
+        return requests
+
+    def request_parameters_from_json(self, input: dict) -> list[Parameter]:
+        parameters = []
+        for parameter_json in input:
+            parameter = Parameter(name=parameter_json['name'],
+                                  required=parameter_json['required'],
+                                  position=(ParameterPosition.QUERY
+                                            if parameter_json['in'] == 'query'
+                                            else ParameterPosition.PATH),
+                                  type=self.lookup_schema_from_json(parameter_json['schema']))
+            parameters.append(parameter)
+
+        return parameters
+
+    def lookup_schema_from_json(self, input: dict) -> Schema:
+        if '$ref' in input:
+            ref_schema_title = input['$ref'].split('/')[-1]
+            return self.parsed_schemas[ref_schema_title]
+        else:
+            if 'type' in input:
+                json_type = input['type']
+                if json_type == 'array':
+                    json_items = input['items']
+                    if '$ref' in json_items:
+                        ref_schema_title = (json_items['$ref'].split('/')[-1])
+                        items = self.parsed_schemas[ref_schema_title]
+                    else:
+                        any_of = []
+                        for t in json_items['anyOf']:
+                            any_of.append(self.primitive_type_from_json(t['type']))
+                        items = UnionType(any_of=any_of)
+
+                    schema_type = ArrayType(items=items)
+                else:
+                    schema_type = self.primitive_type_from_json(json_type)
+            else:
+                schema_type = PrimitiveType.ANY
+
+            schema = SimpleSchema(title=input['title'], type=schema_type)
+            if 'format' in input:
+                schema.format = input['format']
+            return schema
 
     def primitive_type_from_json(self, json_type: str) -> PrimitiveType:
         if json_type == 'integer':
