@@ -1,0 +1,29 @@
+import aiohttp
+from typing import {% if need_typing.any %}Any, {% endif %}Optional, Mapping
+{% if model_types -%}
+from .model import (
+{%- for model_type in model_types -%}
+    {{model_type}}{% if not loop.last %}, {% endif %}
+{%- endfor -%}
+)
+{% endif %}
+
+class ClientSession(aiohttp.ClientSession):
+{% for operation in operations %}
+    async def {{operation.name}}(self
+        {%- if operation.required_arguments or operation.optional_arguments %}, {% endif -%}
+        {%- for arg in operation.required_arguments -%}
+            {{arg.name}}: {{arg.type}}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+        {%- if operation.required_arguments and operation.optional_arguments %}, {% endif -%}
+        {%- for arg in operation.optional_arguments -%}
+            {{arg.name}}: Optional[{{arg.type}}] = None{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+    ) -> {{operation.response_type}}:
+        pass
+{% endfor %}
+
+{% for server in servers %}
+def get_{{server.name}}_session(server_url: str, headers: Optional[Mapping[str, str]] = None) -> aiohttp.ClientSession:
+    return ClientSession(base_url=f'{server_url}{{server.url}}', headers=headers)
+{% endfor %}
