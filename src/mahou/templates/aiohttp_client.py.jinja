@@ -109,6 +109,6 @@ class ClientSession(aiohttp.ClientSession):
         {% endfor %}
 
 {% for server in servers %}
-def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, headers: Optional[Mapping[str, str]] = None) -> aiohttp.ClientSession:
+def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, headers: Optional[Mapping[str, str]] = None) -> ClientSession:
     return ClientSession(base_url=f'{server_url}{{server.url}}', headers=headers)
 {% endfor %}
