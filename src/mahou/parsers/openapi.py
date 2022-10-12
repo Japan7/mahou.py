@@ -13,9 +13,14 @@ class OpenAPIParser(Parser[Server]):
         return self.server_from_json(json.loads(input))
 
     def server_from_json(self, input: dict) -> Server:
+        if 'servers' not in input:
+            urls = ['/']
+        else:
+            urls = [server['url'] for server in input['servers']]
+
         server = Server(title=input['info']['title'],
                         version=input['info']['version'],
-                        urls=[server['url'] for server in input['servers']],
+                        urls=urls,
                         paths=[],
                         schemas={})
 
@@ -126,7 +131,10 @@ class OpenAPIParser(Parser[Server]):
                               ),
                               responses=self.request_responses_from_json(
                                   request_json['responses']
-                              ))
+                              ),
+                              tags=[])
+            if 'tags' in request_json:
+                request.tags = request_json['tags']
             if 'requestBody' in request_json:
                 request.body = self.request_body_from_json(request_json['requestBody'])
             requests.append(request)

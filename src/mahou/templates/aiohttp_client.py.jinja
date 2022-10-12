@@ -1,10 +1,10 @@
 import json
-from typing import {% if need_typing.any %}Any, {% endif %}Generic, Optional, Mapping, {% if need_typing.union %}Union, {% endif %}TypeVar
-{% if model_types -%}
+from typing import {% if need_typing.any %}Any, {% endif %}Generic, Mapping, Optional, {% if need_typing.union %}Union, {% endif %}TypeVar
 from urllib import parse
 
 import aiohttp
 
+{% if model_types -%}
 from .model import (
 {%- for model_type in model_types -%}
     {{model_type}}{% if not loop.last %}, {% endif %}
@@ -23,7 +23,11 @@ class Maybe(Generic[Success, Error]):
         self.error: Optional[Error] = error
 
 
-class ClientSession(aiohttp.ClientSession):
+{% for module_name, operations in modules.items() %}
+class {{module_name.capitalize()}}Module():
+    def __init__(self, session: aiohttp.Session):
+        self.session: aiohttp.Session = session
+
 {% for operation in operations %}
     async def {{operation.name}}(self
         {%- if operation.required_arguments or operation.optional_arguments %}, {% endif -%}
@@ -54,9 +58,9 @@ class ClientSession(aiohttp.ClientSession):
         {%- endif %}
 
         {% if operation.body -%}
-        async with self.{{operation.method}}(url, content=json.dumps(body)) as resp:
+        async with self.session.{{operation.method}}(url, content=json.dumps(body)) as resp:
         {%- else -%}
-        async with self.{{operation.method}}(url) as resp:
+        async with self.session.{{operation.method}}(url) as resp:
         {%- endif %}
             assert resp.status in {{operation.responses_success.keys()|list + operation.responses_error.keys()|list}}
             maybe = Maybe[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}, {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]()
@@ -95,7 +99,16 @@ class ClientSession(aiohttp.ClientSession):
             return maybe
 {% endfor %}
 
+{% endfor %}
+
+class ClientSession(aiohttp.ClientSession):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        {% for module in modules -%}
+        self.{{module}}: {{module.capitalize()}}Module = {{module.capitalize()}}Module(self)
+        {% endfor %}
+
 {% for server in servers %}
-def get_{{server.name}}_session(server_url: str, headers: Optional[Mapping[str, str]] = None) -> aiohttp.ClientSession:
+def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, headers: Optional[Mapping[str, str]] = None) -> aiohttp.ClientSession:
     return ClientSession(base_url=f'{server_url}{{server.url}}', headers=headers)
 {% endfor %}

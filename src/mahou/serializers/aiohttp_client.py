@@ -1,3 +1,4 @@
+from collections import defaultdict
 import black
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -12,7 +13,7 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
 
     def serialize(self, input: Server) -> str:
         servers = []
-        operations = []
+        modules = defaultdict(list)
 
         for url in input.urls:
             servers.append({'name': url[1:].replace('/', '_'), 'url': url})
@@ -38,6 +39,7 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                         operation['required_arguments'].append(argument)
                     else:
                         operation['optional_arguments'].append(argument)
+                        self.need_typing['optional'] = True
 
                     if parameter.position == ParameterPosition.QUERY:
                         operation['query_parameters'].append(parameter.name)
@@ -51,6 +53,7 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                         operation['required_arguments'].append(argument)
                     else:
                         operation['optional_arguments'].append(argument)
+                        self.need_typing['optional'] = True
 
                 for response_code, response_type in request.responses.items():
                     if response_code in [200, 204]:
@@ -62,12 +65,13 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                             response_type
                         )
 
-                operations.append(operation)
+                for tag in request.tags:
+                    modules[tag].append(operation)
 
         jinja_env = Environment(loader=PackageLoader('mahou'), autoescape=select_autoescape())
         template = jinja_env.get_template('aiohttp_client.py.jinja')
 
-        return black.format_file_contents(template.render(servers=servers, operations=operations,
+        return black.format_file_contents(template.render(servers=servers, modules=modules,
                                                           need_typing=self.need_typing,
                                                           model_types=self.model_types),
                                           fast=False, mode=black.FileMode())

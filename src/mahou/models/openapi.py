@@ -76,6 +76,7 @@ class Request():
     operation_id: Optional[str]
     parameters: list[Parameter]
     responses: dict[int, Optional[Schema]]
+    tags: list[str]
     body: Optional[Variable] = None
 
 
