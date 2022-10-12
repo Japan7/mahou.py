@@ -11,7 +11,7 @@ from typing import
 {% endif %}
 
 {% for enum in enums %}
-class {{enum.name}}(Enum):
+class {{enum.name}}(str, Enum):
 {%- for element in enum.elements %}
     {{element.name}} = {{element.value}}
 {%- endfor %}

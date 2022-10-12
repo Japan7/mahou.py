@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, Union
 
 
 class PrimitiveType(Enum):
@@ -12,13 +12,13 @@ class PrimitiveType(Enum):
 
 
 @dataclass
-class UnionType():
-    any_of: list[PrimitiveType]
+class Schema():
+    title: str
 
 
 @dataclass
-class Schema():
-    title: str
+class UnionType():
+    any_of: list[Union[PrimitiveType, 'ArrayType', Schema]]
 
 
 @dataclass
@@ -28,7 +28,7 @@ class ArrayType():
 
 @dataclass
 class SimpleSchema(Schema):
-    type: PrimitiveType | ArrayType
+    type: PrimitiveType | ArrayType | UnionType
     format: Optional[str] = None
 
 
@@ -44,22 +44,29 @@ class EnumSchema(Schema):
     description: str
 
 
+@dataclass
+class Variable():
+    required: bool
+    type: Schema
+
+
 class ParameterPosition(Enum):
     QUERY = 1
     PATH = 2
 
 
 @dataclass
-class Parameter():
+class Parameter(Variable):
     name: str
     position: ParameterPosition
-    required: bool
-    type: Schema
 
 
 class RequestMethod(Enum):
-    GET = 1
-    POST = 2
+    GET = 'get'
+    POST = 'post'
+    PATCH = 'patch'
+    DELETE = 'delete'
+    PUT = 'put'
 
 
 @dataclass
@@ -68,6 +75,8 @@ class Request():
     summary: Optional[str]
     operation_id: Optional[str]
     parameters: list[Parameter]
+    responses: dict[int, Optional[Schema]]
+    body: Optional[Variable] = None
 
 
 @dataclass

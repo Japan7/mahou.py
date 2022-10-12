@@ -1,12 +1,27 @@
-import aiohttp
-from typing import {% if need_typing.any %}Any, {% endif %}Optional, Mapping
+import json
+from typing import {% if need_typing.any %}Any, {% endif %}Generic, Optional, Mapping, {% if need_typing.union %}Union, {% endif %}TypeVar
 {% if model_types -%}
+from urllib import parse
+
+import aiohttp
+
 from .model import (
 {%- for model_type in model_types -%}
     {{model_type}}{% if not loop.last %}, {% endif %}
 {%- endfor -%}
-)
+, ModelFactory)
 {% endif %}
+
+Success = TypeVar('Success')
+Error = TypeVar('Error')
+
+
+class Maybe(Generic[Success, Error]):
+    def __init__(self, success: Optional[Success] = None, error: Optional[Error] = None):
+        self.code: int = -1
+        self.success: Optional[Success] = success
+        self.error: Optional[Error] = error
+
 
 class ClientSession(aiohttp.ClientSession):
 {% for operation in operations %}
@@ -19,8 +34,65 @@ class ClientSession(aiohttp.ClientSession):
         {%- for arg in operation.optional_arguments -%}
             {{arg.name}}: Optional[{{arg.type}}] = None{% if not loop.last %}, {% endif %}
         {%- endfor -%}
-    ) -> {{operation.response_type}}:
-        pass
+    ) -> Maybe[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}, {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]:
+        {% if operation.path_parameters -%}
+            url = f'{{operation.endpoint.replace("{", "{parse.quote(json.dumps(").replace("}", "))}")}}'
+        {%- else -%}
+            url = '{{operation.endpoint}}'
+        {%- endif %}
+
+        {%- if operation.query_parameters %}
+        first_query_parameter = True
+        {%- for parameter in operation.query_parameters %}
+        if {{parameter}}:
+            if first_query_parameter:
+                url += f'?{{parameter}}={parse.quote(json.dumps({{parameter}}))}'
+                first_query_parameter = False
+            else:
+                url += f'&{{parameter}}={parse.quote(json.dumps({{parameter}}))}'
+        {%- endfor -%}
+        {%- endif %}
+
+        {% if operation.body -%}
+        async with self.{{operation.method}}(url, content=json.dumps(body)) as resp:
+        {%- else -%}
+        async with self.{{operation.method}}(url) as resp:
+        {%- endif %}
+            assert resp.status in {{operation.responses_success.keys()|list + operation.responses_error.keys()|list}}
+            maybe = Maybe[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}, {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]()
+            {%- for code, type in operation.responses_success.items() %}
+            if resp.status == {{code}}:
+                maybe.success = {% if type == 'None' -%}None
+                                {%- elif type.startswith('Union[') and type.endswith(']') -%}
+                                    {%- set instantiable_type = type[6:-1].split(',')[0] -%}
+                                    {%- if instantiable_type.startswith('list[') and instantiable_type.endswith(']') -%}
+                                        [ModelFactory.{{instantiable_type[5:-1]}}_from_dict(e) for e in await resp.json()]
+                                    {%- else -%}
+                                        ModelFactory.{{instantiable_type}}_from_dict(await resp.json())
+                                    {%- endif -%}
+                                {%- elif type.startswith('list[') and type.endswith(']') -%}
+                                    [ModelFactory.{{type[5:-1]}}_from_dict(e) for e in await resp.json()]
+                                {%- else -%}
+                                    ModelFactory.{{type}}_from_dict(await resp.json())
+                                {%- endif -%}
+            {%- endfor %}
+            {%- for code, type in operation.responses_error.items() %}
+            if resp.status == {{code}}:
+                maybe.error = {% if type == 'None' -%}None
+                                {%- elif type.startswith('Union[') and type.endswith(']') -%}
+                                    {%- set instantiable_type = type[6:-1].split(',')[0] -%}
+                                    {%- if instantiable_type.startswith('list[') and instantiable_type.endswith(']') -%}
+                                        [ModelFactory.{{instantiable_type[5:-1]}}_from_dict(e) for e in await resp.json()]
+                                    {%- else -%}
+                                        ModelFactory.{{instantiable_type}}_from_dict(await resp.json())
+                                    {%- endif -%}
+                              {%- elif type.startswith('list[') and type.endswith(']') -%}
+                                  [ModelFactory.{{type[5:-1]}}_from_dict(e) for e in await resp.json()]
+                              {%- else -%}
+                                  ModelFactory.{{type}}_from_dict(await resp.json())
+                              {%- endif -%}
+            {%- endfor %}
+            return maybe
 {% endfor %}
 
 {% for server in servers %}

@@ -1,5 +1,6 @@
 import re
 
+import black
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from mahou.models.openapi import (ArrayType, ComplexSchema, EnumSchema, PrimitiveType, Schema,
@@ -59,5 +60,6 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
         jinja_env = Environment(loader=PackageLoader('mahou'), autoescape=select_autoescape())
         template = jinja_env.get_template('model.py.jinja')
 
-        return template.render(enums=enums, dataclasses=dataclasses,
-                               need_typing=need_typing).strip()
+        return black.format_file_contents(template.render(enums=enums, dataclasses=dataclasses,
+                                                          need_typing=need_typing),
+                                          fast=False, mode=black.FileMode())

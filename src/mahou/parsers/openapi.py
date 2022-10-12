@@ -1,7 +1,7 @@
 import json
 
-from mahou.models.openapi import (ArrayType, ComplexSchema, Parameter, ParameterPosition, Path, PrimitiveType, Request, SimpleSchema,
-                                  EnumSchema, Schema, Server, UnionType)
+from mahou.models.openapi import (ArrayType, ComplexSchema, Parameter, ParameterPosition, Path, PrimitiveType, Request, RequestMethod, SimpleSchema,
+                                  EnumSchema, Schema, Server, UnionType, Variable)
 from mahou.parsers.abc import Parser
 
 
@@ -50,24 +50,16 @@ class OpenAPIParser(Parser[Server]):
                         property = self.parsed_schemas[ref_schema_title]
                     else:
                         property = self.schema_from_json(input[ref_schema_title], input)
+                elif 'anyOf' in json_property:
+                    property = SimpleSchema(title=json_property['title'],
+                                            type=self.union_type_from_json(json_property['anyOf'],
+                                                                           input))
                 else:
                     if 'type' in json_property:
                         json_type = json_property['type']
                         if json_type == 'array':
-                            json_items = json_property['items']
-                            if '$ref' in json_items:
-                                ref_schema_title = (json_items['$ref'].split('/')[-1])
-                                if ref_schema_title in self.parsed_schemas:
-                                    items = self.parsed_schemas[ref_schema_title]
-                                else:
-                                    items = self.schema_from_json(input[ref_schema_title], input)
-                            else:
-                                any_of = []
-                                for t in json_items['anyOf']:
-                                    any_of.append(self.primitive_type_from_json(t['type']))
-                                items = UnionType(any_of=any_of)
-
-                            property_type = ArrayType(items=items)
+                            property_type = self.array_type_from_json(json_property['items'],
+                                                                      input)
                         else:
                             property_type = self.primitive_type_from_json(json_type)
                     else:
@@ -81,6 +73,39 @@ class OpenAPIParser(Parser[Server]):
 
             return schema
 
+    def union_type_from_json(self, json_union: dict, input: dict) -> UnionType:
+        any_of = []
+        for t in json_union:
+            if '$ref' in t:
+                ref_schema_title = (t['$ref'].split('/')[-1])
+                if ref_schema_title in self.parsed_schemas:
+                    any_of.append(self.parsed_schemas[ref_schema_title])
+                else:
+                    any_of.append(self.schema_from_json(input[ref_schema_title], input))
+            else:
+                json_type = t['type']
+                if json_type == 'array':
+                    any_of.append(self.array_type_from_json(t['items'], input))
+                else:
+                    any_of.append(self.primitive_type_from_json(json_type))
+
+        return UnionType(any_of=any_of)
+
+    def array_type_from_json(self, json_array: dict, input: dict) -> ArrayType:
+        if '$ref' in json_array:
+            ref_schema_title = (json_array['$ref'].split('/')[-1])
+            if ref_schema_title in self.parsed_schemas:
+                items = self.parsed_schemas[ref_schema_title]
+            else:
+                items = self.schema_from_json(input[ref_schema_title], input)
+        elif 'anyOf' in json_array:
+            items = self.union_type_from_json(json_array['anyOf'], input)
+        else:
+            items = SimpleSchema(title=json_array['title'],
+                                 type=self.primitive_type_from_json(json_array['type']))
+
+        return ArrayType(items=items)
+
     def paths_from_json(self, input: dict) -> list[Path]:
         paths = []
         for endpoint, requests in input.items():
@@ -91,16 +116,28 @@ class OpenAPIParser(Parser[Server]):
     def requests_from_json(self, input: dict) -> list[Request]:
         requests = []
         for request_method, request_json in input.items():
-            request = Request(method=request_method, summary=request_json['summary'],
+            request = Request(method=RequestMethod(request_method),
+                              summary=request_json['summary'],
                               operation_id=request_json['operationId'],
                               parameters=self.request_parameters_from_json(
                                   request_json['parameters']
                                   if 'parameters' in request_json
                                   else {}
+                              ),
+                              responses=self.request_responses_from_json(
+                                  request_json['responses']
                               ))
+            if 'requestBody' in request_json:
+                request.body = self.request_body_from_json(request_json['requestBody'])
             requests.append(request)
 
         return requests
+
+    def request_body_from_json(self, input: dict) -> Variable:
+        return Variable(required=input['required'],
+                        type=self.lookup_schema_from_json(
+                            input['content']['application/json']['schema']
+                        ))
 
     def request_parameters_from_json(self, input: dict) -> list[Parameter]:
         parameters = []
@@ -115,25 +152,30 @@ class OpenAPIParser(Parser[Server]):
 
         return parameters
 
+    def request_responses_from_json(self, input: dict) -> dict[int, Schema | None]:
+        responses = {}
+        for response_code, response_json in input.items():
+            if 'content' in response_json:
+                responses[int(response_code)] = self.lookup_schema_from_json(
+                    response_json['content']['application/json']['schema']
+                )
+            else:
+                responses[int(response_code)] = None
+
+        return responses
+
     def lookup_schema_from_json(self, input: dict) -> Schema:
         if '$ref' in input:
             ref_schema_title = input['$ref'].split('/')[-1]
             return self.parsed_schemas[ref_schema_title]
+        elif 'anyOf' in input:
+            return SimpleSchema(title=input['title'],
+                                type=self.lookup_union_type_from_json(input['anyOf']))
         else:
             if 'type' in input:
                 json_type = input['type']
                 if json_type == 'array':
-                    json_items = input['items']
-                    if '$ref' in json_items:
-                        ref_schema_title = (json_items['$ref'].split('/')[-1])
-                        items = self.parsed_schemas[ref_schema_title]
-                    else:
-                        any_of = []
-                        for t in json_items['anyOf']:
-                            any_of.append(self.primitive_type_from_json(t['type']))
-                        items = UnionType(any_of=any_of)
-
-                    schema_type = ArrayType(items=items)
+                    schema_type = self.lookup_array_type_from_json(input['items'])
                 else:
                     schema_type = self.primitive_type_from_json(json_type)
             else:
@@ -143,6 +185,33 @@ class OpenAPIParser(Parser[Server]):
             if 'format' in input:
                 schema.format = input['format']
             return schema
+
+    def lookup_union_type_from_json(self, json_union: dict) -> UnionType:
+        any_of = []
+        for t in json_union:
+            if '$ref' in t:
+                ref_schema_title = (t['$ref'].split('/')[-1])
+                any_of.append(self.parsed_schemas[ref_schema_title])
+            else:
+                json_type = t['type']
+                if json_type == 'array':
+                    any_of.append(self.lookup_array_type_from_json(t['items']))
+                else:
+                    any_of.append(self.primitive_type_from_json(json_type))
+
+        return UnionType(any_of=any_of)
+
+    def lookup_array_type_from_json(self, json_array: dict) -> ArrayType:
+        if '$ref' in json_array:
+            ref_schema_title = (json_array['$ref'].split('/')[-1])
+            items = self.parsed_schemas[ref_schema_title]
+        elif 'anyOf' in json_array:
+            items = self.lookup_union_type_from_json(json_array['anyOf'])
+        else:
+            items = SimpleSchema(title=json_array['title'],
+                                 type=self.primitive_type_from_json(json_array['type']))
+
+        return ArrayType(items=items)
 
     def primitive_type_from_json(self, json_type: str) -> PrimitiveType:
         if json_type == 'integer':

@@ -1,15 +1,18 @@
+import black
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from mahou.models.openapi import ArrayType, ComplexSchema, PrimitiveType, Server, SimpleSchema, UnionType
+from mahou.models.openapi import ArrayType, ComplexSchema, ParameterPosition, PrimitiveType, Schema, Server, SimpleSchema, UnionType
 from mahou.serializers.abc import Serializer
 
 
 class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
+    def __init__(self):
+        self.need_typing = {}
+        self.model_types = set()
+
     def serialize(self, input: Server) -> str:
         servers = []
         operations = []
-        need_typing = {}
-        model_types = set()
 
         for url in input.urls:
             servers.append({'name': url[1:].replace('/', '_'), 'url': url})
@@ -17,31 +20,18 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
         for path in input.paths:
             for request in path.requests:
                 operation = {'name': request.operation_id,
+                             'method': request.method.value,
+                             'endpoint': path.endpoint,
                              'required_arguments': [],
                              'optional_arguments': [],
-                             'response_type': 'None'}
+                             'responses_success': {},
+                             'responses_error': {},
+                             'query_parameters': [],
+                             'path_parameters': [],
+                             'body': False}
 
                 for parameter in request.parameters:
-                    serialized_type = ''
-                    if isinstance(parameter.type, SimpleSchema):
-                        parameter_type = parameter.type.type
-                        if isinstance(parameter_type, PrimitiveType):
-                            serialized_type = parameter_type.value
-                            if parameter_type == PrimitiveType.ANY:
-                                need_typing['any'] = True
-                        elif isinstance(parameter_type, ArrayType):
-                            items = parameter_type.items
-                            if isinstance(items, UnionType):
-                                serialized_type = ' | '.join([t.value for t in items.any_of])
-                                if PrimitiveType.ANY in items.any_of:
-                                    need_typing['any'] = True
-                            elif isinstance(items, ComplexSchema):
-                                serialized_type = items.title
-                                model_types.add(serialized_type)
-                            serialized_type = f'list[{serialized_type}]'
-                    else:
-                        serialized_type = parameter.type.title
-                        model_types.add(serialized_type)
+                    serialized_type = self.serialize_type(parameter.type)
 
                     argument = {'name': parameter.name, 'type': serialized_type}
                     if parameter.required:
@@ -49,10 +39,85 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                     else:
                         operation['optional_arguments'].append(argument)
 
+                    if parameter.position == ParameterPosition.QUERY:
+                        operation['query_parameters'].append(parameter.name)
+                    else:
+                        operation['path_parameters'].append(parameter.name)
+
+                if request.body:
+                    argument = {'name': 'body', 'type': self.serialize_type(request.body.type)}
+                    operation['body'] = True
+                    if request.body.required:
+                        operation['required_arguments'].append(argument)
+                    else:
+                        operation['optional_arguments'].append(argument)
+
+                for response_code, response_type in request.responses.items():
+                    if response_code in [200, 204]:
+                        operation['responses_success'][response_code] = self.serialize_type(
+                            response_type
+                        )
+                    else:
+                        operation['responses_error'][response_code] = self.serialize_type(
+                            response_type
+                        )
+
                 operations.append(operation)
 
         jinja_env = Environment(loader=PackageLoader('mahou'), autoescape=select_autoescape())
         template = jinja_env.get_template('aiohttp_client.py.jinja')
 
-        return template.render(servers=servers, operations=operations,
-                               need_typing=need_typing, model_types=model_types).strip()
+        return black.format_file_contents(template.render(servers=servers, operations=operations,
+                                                          need_typing=self.need_typing,
+                                                          model_types=self.model_types),
+                                          fast=False, mode=black.FileMode())
+
+    def serialize_type(self, parsed_type: Schema | None) -> str:
+        if not parsed_type:
+            return 'None'
+
+        return self.serialize_schema_type(parsed_type)
+
+    def serialize_schema_type(self, schema_type: Schema) -> str:
+        serialized_type = ''
+        if isinstance(schema_type, SimpleSchema):
+            parsed_type = schema_type.type
+            if isinstance(parsed_type, PrimitiveType):
+                serialized_type = parsed_type.value
+                if parsed_type == PrimitiveType.ANY:
+                    self.need_typing['any'] = True
+            elif isinstance(parsed_type, ArrayType):
+                serialized_type = self.serialize_array_type(parsed_type)
+            elif isinstance(parsed_type, UnionType):
+                serialized_type = self.serialize_union_type(parsed_type)
+        else:
+            serialized_type = schema_type.title
+            self.model_types.add(serialized_type)
+
+        return serialized_type
+
+    def serialize_union_type(self, union_type: UnionType) -> str:
+        serialized_type_array = []
+        for t in union_type.any_of:
+            if isinstance(t, PrimitiveType):
+                serialized_type_array.append(t.value)
+                if t == PrimitiveType.ANY:
+                    self.need_typing['any'] = True
+            elif isinstance(t, ComplexSchema):
+                serialized_type_array.append(t.title)
+                self.model_types.add(t.title)
+            elif isinstance(t, ArrayType):
+                serialized_type_array.append(self.serialize_array_type(t))
+
+        self.need_typing['union'] = True
+        return f'Union[{",".join(serialized_type_array)}]'
+
+    def serialize_array_type(self, array_type: ArrayType) -> str:
+        items = array_type.items
+        serialized_type = ''
+        if isinstance(items, UnionType):
+            serialized_type = self.serialize_union_type(items)
+        elif isinstance(items, Schema):
+            serialized_type = self.serialize_schema_type(items)
+
+        return f'list[{serialized_type}]'
