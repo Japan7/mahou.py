@@ -9,12 +9,14 @@ from mahou.serializers.abc import Serializer
 
 
 class OpenAPIModelSerializer(Serializer[list[Schema]]):
+    def __init__(self):
+        self.need_typing = {}
+
     def serialize(self, input: list[Schema]) -> str:
         enum_forbidden_chars = re.compile('[^a-zA-Z0-9_]')
 
         enums = []
         dataclasses = []
-        need_typing = {}
 
         for schema in input:
             if isinstance(schema, EnumSchema):
@@ -27,24 +29,7 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
                 dataclass = {'name': schema.title, 'required_elements': [],
                              'optional_elements': []}
                 for property_name, property_schema in schema.properties.items():
-                    serialized_type = ''
-                    if isinstance(property_schema, SimpleSchema):
-                        property_type = property_schema.type
-                        if isinstance(property_type, PrimitiveType):
-                            serialized_type = property_type.value
-                            if property_type == PrimitiveType.ANY:
-                                need_typing['any'] = True
-                        elif isinstance(property_type, ArrayType):
-                            items = property_type.items
-                            if isinstance(items, UnionType):
-                                serialized_type = ' | '.join([t.value for t in items.any_of])
-                                if PrimitiveType.ANY in items.any_of:
-                                    need_typing['any'] = True
-                            elif isinstance(items, ComplexSchema):
-                                serialized_type = f"'{items.title}'"
-                            serialized_type = f'list[{serialized_type}]'
-                    else:
-                        serialized_type = f"'{property_schema.title}'"
+                    serialized_type = self.serialize_type(property_schema)
 
                     if property_name in schema.required_properties:
                         dataclass['required_elements'].append({'name': property_name,
@@ -52,7 +37,7 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
                     else:
                         dataclass['optional_elements'].append({'name': property_name,
                                                                'type': serialized_type})
-                        need_typing['optional'] = True
+                        self.need_typing['optional'] = True
 
                 if dataclass['name'] not in [d['name'] for d in dataclasses]:
                     dataclasses.append(dataclass)
@@ -61,5 +46,57 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
         template = jinja_env.get_template('model.py.jinja')
 
         return black.format_file_contents(template.render(enums=enums, dataclasses=dataclasses,
-                                                          need_typing=need_typing),
+                                                          need_typing=self.need_typing),
                                           fast=False, mode=black.FileMode())
+
+    def serialize_type(self, parsed_type: Schema | None) -> str:
+        if not parsed_type:
+            return 'None'
+
+        return self.serialize_schema_type(parsed_type)
+
+    def serialize_schema_type(self, schema_type: Schema) -> str:
+        serialized_type = ''
+        if isinstance(schema_type, SimpleSchema):
+            parsed_type = schema_type.type
+            if isinstance(parsed_type, PrimitiveType):
+                serialized_type = parsed_type.value
+                if parsed_type == PrimitiveType.ANY:
+                    self.need_typing['any'] = True
+            elif isinstance(parsed_type, ArrayType):
+                serialized_type = self.serialize_array_type(parsed_type)
+            elif isinstance(parsed_type, UnionType):
+                serialized_type = self.serialize_union_type(parsed_type)
+        else:
+            serialized_type = f"'{schema_type.title}'"
+
+        return serialized_type
+
+    def serialize_union_type(self, union_type: UnionType) -> str:
+        serialized_type_array = []
+        for t in union_type.any_of:
+            if isinstance(t, PrimitiveType):
+                serialized_type_array.append(t.value)
+                if t == PrimitiveType.ANY:
+                    self.need_typing['any'] = True
+            elif isinstance(t, ComplexSchema):
+                serialized_type_array.append(self.serialize_schema_type(t))
+            elif isinstance(t, ArrayType):
+                serialized_type_array.append(self.serialize_array_type(t))
+
+        self.need_typing['union'] = True
+        return f'Union[{",".join(serialized_type_array)}]'
+
+    def serialize_array_type(self, array_type: ArrayType) -> str:
+        items = array_type.items
+        serialized_type = ''
+        if isinstance(items, UnionType):
+            serialized_type = self.serialize_union_type(items)
+        elif isinstance(items, ComplexSchema):
+            serialized_type = self.serialize_schema_type(items)
+        elif isinstance(items, PrimitiveType):
+            serialized_type = items.value
+            if items == PrimitiveType.ANY:
+                self.need_typing['any'] = True
+
+        return f'list[{serialized_type}]'

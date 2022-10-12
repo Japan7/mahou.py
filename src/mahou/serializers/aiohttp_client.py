@@ -2,7 +2,8 @@ from collections import defaultdict
 import black
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from mahou.models.openapi import ArrayType, ComplexSchema, ParameterPosition, PrimitiveType, Schema, Server, SimpleSchema, UnionType
+from mahou.models.openapi import (ArrayType, ComplexSchema, ParameterPosition, PrimitiveType,
+                                  Schema, Server, SimpleSchema, UnionType)
 from mahou.serializers.abc import Serializer
 
 
@@ -56,7 +57,7 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                         self.need_typing['optional'] = True
 
                 for response_code, response_type in request.responses.items():
-                    if response_code in [200, 204]:
+                    if response_code > 199 and response_code < 300:
                         operation['responses_success'][response_code] = self.serialize_type(
                             response_type
                         )
@@ -121,7 +122,11 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
         serialized_type = ''
         if isinstance(items, UnionType):
             serialized_type = self.serialize_union_type(items)
-        elif isinstance(items, Schema):
+        elif isinstance(items, ComplexSchema):
             serialized_type = self.serialize_schema_type(items)
+        elif isinstance(items, PrimitiveType):
+            serialized_type = items.value
+            if items == PrimitiveType.ANY:
+                self.need_typing['any'] = True
 
         return f'list[{serialized_type}]'

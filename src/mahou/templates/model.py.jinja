@@ -5,9 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 {% endif -%}
 {% if need_typing -%}
-from typing import
-{%- if need_typing.any %} Any{% if need_typing.optional %},{% endif %}{% endif -%}
-{%- if need_typing.optional %} Optional{% endif -%}
+from typing import {{need_typing | map('capitalize') | join(', ')}}
 {% endif %}
 
 {% for enum in enums %}
