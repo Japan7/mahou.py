@@ -31,8 +31,8 @@ class Surely(Generic[Success]):
 
 {% for module_name, operations in modules.items() %}
 class {{module_name.capitalize()}}Module():
-    def __init__(self, session: aiohttp.Session):
-        self.session: aiohttp.Session = session
+    def __init__(self, session: 'ClientSession'):
+        self.session: ClientSession = session
 
 {% for operation in operations %}
     async def {{operation.name}}(self
