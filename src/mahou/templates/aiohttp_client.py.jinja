@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import {% if need_typing.any %}Any, {% endif %}Generic, Optional, {% if need_typing.union %}Union, {% endif %}TypeVar, TYPE_CHECKING
+from typing import {% if need_typing.any %}Any, {% endif %}Generic, Optional, {% if need_typing.union %}Union, {% endif %}TypeGuard, TypeVar, TYPE_CHECKING
 if TYPE_CHECKING:
-    from typing_extensions import StrictTypeGuard
+    from typing_extensions import StrictTypeGuard as TypeGuard  # type: ignore # noqa: F811
 {% for import in extra_imports -%}
 {{import}}
 {% endfor -%}
@@ -32,7 +32,7 @@ class Error(Generic[TError]):
         self.result: TError = result
 
 
-def success(maybe: Success | Error) -> StrictTypeGuard[Success]:
+def success(maybe: Success | Error) -> TypeGuard[Success]:
     return isinstance(maybe, Success)
 
 
