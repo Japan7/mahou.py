@@ -16,8 +16,8 @@ class {{enum.name}}(str, Enum):
 {%- for element in enum.elements %}
     {{element.name}} = {{element.value}}
 {%- endfor %}
-
 {% endfor -%}
+
 {% for dataclass in dataclasses %}
 @dataclass
 class {{dataclass.name}}():
@@ -27,5 +27,8 @@ class {{dataclass.name}}():
 {%- for element in dataclass.optional_elements %}
     {{element.name}}{% if element.type %}: Optional[{{element.type}}] = None{% endif %}
 {%- endfor %}
-
 {% endfor %}
+
+{%- for dataclass in dataclasses %}
+{{dataclass.name}}.__pydantic_model__.update_forward_refs()
+{%- endfor %}
