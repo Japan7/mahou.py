@@ -7,6 +7,9 @@ from enum import Enum
 {% if need_typing -%}
 from typing import {{need_typing | map('capitalize') | join(', ')}}
 {% endif %}
+{% for import in extra_imports -%}
+{{import}}
+{% endfor -%}
 
 {% for enum in enums %}
 class {{enum.name}}(str, Enum):

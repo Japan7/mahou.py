@@ -7,10 +7,20 @@ from mahou.models.openapi import (ArrayType, ComplexSchema, EnumSchema, Primitiv
                                   SimpleSchema, UnionType)
 from mahou.serializers.abc import Serializer
 
+STR_FORMATS = {
+    'uuid': 'UUID',
+    'date-time': 'datetime',
+}
+
+STR_FORMATS_IMPORTS = {
+    'UUID': 'from uuid import UUID',
+    'datetime': 'from datetime import datetime',
+}
 
 class OpenAPIModelSerializer(Serializer[list[Schema]]):
     def __init__(self):
         self.need_typing = {}
+        self.extra_imports = set()
 
     def serialize(self, input: list[Schema]) -> str:
         enum_forbidden_chars = re.compile('[^a-zA-Z0-9_]')
@@ -46,7 +56,8 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
         template = jinja_env.get_template('model.py.jinja')
 
         return black.format_file_contents(template.render(enums=enums, dataclasses=dataclasses,
-                                                          need_typing=self.need_typing),
+                                                          need_typing=self.need_typing,
+                                                          extra_imports=self.extra_imports),
                                           fast=False, mode=black.FileMode())
 
     def serialize_type(self, parsed_type: Schema | None) -> str:
@@ -60,7 +71,17 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
         if isinstance(schema_type, SimpleSchema):
             parsed_type = schema_type.type
             if isinstance(parsed_type, PrimitiveType):
-                serialized_type = parsed_type.value
+                if parsed_type is PrimitiveType.STR and schema_type.format is not None:
+                    match = STR_FORMATS.get(schema_type.format, None)
+                    if match is not None:
+                        serialized_type = match
+                        extra_import = STR_FORMATS_IMPORTS.get(match, None)
+                        if extra_import is not None:
+                            self.extra_imports.add(extra_import)
+                    else:  # fallback
+                        serialized_type = PrimitiveType.ANY.value
+                else:
+                    serialized_type = parsed_type.value
                 if parsed_type == PrimitiveType.ANY:
                     self.need_typing['any'] = True
             elif isinstance(parsed_type, ArrayType):
