@@ -33,8 +33,9 @@ class Surely(Generic[Success]):
 
 {% for module_name, operations in modules.items() %}
 class {{module_name.capitalize()}}Module():
-    def __init__(self, session: 'ClientSession'):
+    def __init__(self, session: 'ClientSession', server_url: str):
         self.session: ClientSession = session
+        self.server_url: str = server_url
 
 {% for operation in operations %}
     async def {{operation.name}}(self
@@ -51,11 +52,7 @@ class {{module_name.capitalize()}}Module():
          {%- else -%}
              Surely[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}]
          {%- endif %}:
-        {% if operation.path_parameters -%}
-            url = f'{{operation.endpoint}}'
-        {%- else -%}
-            url = '{{operation.endpoint}}'
-        {%- endif %}
+        url = f'{self.server_url}{{operation.endpoint}}'
 
         {%- if operation.query_parameters %}
         params = dict(
@@ -119,13 +116,13 @@ class {{module_name.capitalize()}}Module():
 {% endfor %}
 
 class ClientSession(aiohttp.ClientSession):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, server_url: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         {% for module in modules -%}
-        self.{{module}}: {{module.capitalize()}}Module = {{module.capitalize()}}Module(self)
+        self.{{module}}: {{module.capitalize()}}Module = {{module.capitalize()}}Module(self, server_url)
         {% endfor %}
 
 {% for server in servers %}
 def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, *args, **kwargs) -> ClientSession:
-    return ClientSession(base_url=f'{server_url}{{server.url}}', *args, **kwargs)
+    return ClientSession(server_url, *args, **kwargs)
 {% endfor %}
