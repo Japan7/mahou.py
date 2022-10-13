@@ -1,6 +1,5 @@
-import json
-from typing import {% if need_typing.any %}Any, {% endif %}Generic, Mapping, Optional, {% if need_typing.union %}Union, {% endif %}TypeVar
-from urllib import parse
+from enum import Enum
+from typing import {% if need_typing.any %}Any, {% endif %}Generic, Optional, {% if need_typing.union %}Union, {% endif %}TypeVar
 {% for import in extra_imports -%}
 {{import}}
 {% endfor -%}
@@ -53,28 +52,28 @@ class {{module_name.capitalize()}}Module():
              Surely[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}]
          {%- endif %}:
         {% if operation.path_parameters -%}
-            url = f'{{operation.endpoint.replace("{", "{parse.quote(json.dumps(").replace("}", "))}")}}'
+            url = f'{{operation.endpoint}}'
         {%- else -%}
             url = '{{operation.endpoint}}'
         {%- endif %}
 
         {%- if operation.query_parameters %}
-        first_query_parameter = True
-        {%- for parameter in operation.query_parameters %}
-        if {{parameter}}:
-            if first_query_parameter:
-                url += f'?{{parameter}}={parse.quote(json.dumps({{parameter}}))}'
-                first_query_parameter = False
-            else:
-                url += f'&{{parameter}}={parse.quote(json.dumps({{parameter}}))}'
+        params = dict(
+        {%- for parameter in operation.query_parameters -%}
+            {{parameter}}={{parameter}},
         {%- endfor -%}
+        )
+        params = {k: v.value if isinstance(v, Enum) else v for k, v in params.items() if v is not None}
         {%- endif %}
 
-        {% if operation.body -%}
-        async with self.session.{{operation.method}}(url, content=json.dumps(body)) as resp:
-        {%- else -%}
-        async with self.session.{{operation.method}}(url) as resp:
+        async with self.session.{{operation.method}}(url,
+        {%- if operation.query_parameters -%}
+            params=params,
         {%- endif %}
+        {%- if operation.body -%}
+            json=body,
+        {%- endif -%}
+        ) as resp:
             {%- for code, type in operation.responses_success.items() %}
             if resp.status == {{code}}:
                 {% if operation.responses_error -%}
@@ -127,6 +126,6 @@ class ClientSession(aiohttp.ClientSession):
         {% endfor %}
 
 {% for server in servers %}
-def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, headers: Optional[Mapping[str, str]] = None) -> ClientSession:
-    return ClientSession(base_url=f'{server_url}{{server.url}}', headers=headers)
+def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, *args, **kwargs) -> ClientSession:
+    return ClientSession(base_url=f'{server_url}{{server.url}}', *args, **kwargs)
 {% endfor %}
