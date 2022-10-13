@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Generic, Optional, TypeGuard, TypeVar, TYPE_CHECKING
+from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Generic, Literal, Optional, TypeGuard, TypeVar, TYPE_CHECKING
 if TYPE_CHECKING:
     from typing_extensions import StrictTypeGuard as TypeGuard  # type: ignore # noqa: F811
 {% for import in extra_imports -%}
@@ -16,19 +16,20 @@ from .model import (
 )
 {% endif %}
 
+TCode = TypeVar('TCode')
 TSuccess = TypeVar('TSuccess')
 TError = TypeVar('TError')
 
 
-class Success(Generic[TSuccess]):
-    def __init__(self, code: int, result: TSuccess):
-        self.code = code
+class Success(Generic[TCode, TSuccess]):
+    def __init__(self, code: TCode, result: TSuccess):
+        self.code: TCode = code
         self.result: TSuccess = result
 
 
-class Error(Generic[TError]):
-    def __init__(self, code: int, result: TError):
-        self.code = code
+class Error(Generic[TCode, TError]):
+    def __init__(self, code: TCode, result: TError):
+        self.code: TCode = code
         self.result: TError = result
 
 
@@ -52,7 +53,7 @@ class {{module_name.capitalize()}}Module():
         {%- for arg in operation.optional_arguments -%}
             {{arg.name}}: Optional[{{arg.type}}] = None{% if not loop.last %}, {% endif %}
         {%- endfor -%}
-    ) -> Success[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}]{% if operation.responses_error %} | Error[{{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]{% endif %}:
+    ) -> Success[Literal[{{operation.responses_success|join(',')}}], {{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}]{% if operation.responses_error %} | Error[Literal[{{operation.responses_error|join(',')}}], {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]{% endif %}:
         url = f'{self.server_url}{{operation.endpoint}}'
 
         {%- if operation.query_parameters %}
@@ -74,7 +75,7 @@ class {{module_name.capitalize()}}Module():
         ) as resp:
             {%- for code, type in operation.responses_success.items() %}
             if resp.status == {{code}}:
-                return Success[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}](
+                return Success[Literal[{{operation.responses_success|join(',')}}], {{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}](
                     code={{code}}, result={% if type == 'None' -%}None
                                           {%- elif type.startswith('Union[') and type.endswith(']') -%}
                                               {%- set instantiable_type = type[6:-1].split(',')[0] -%}
@@ -91,7 +92,7 @@ class {{module_name.capitalize()}}Module():
             {%- endfor %}
             {%- for code, type in operation.responses_error.items() %}
             if resp.status == {{code}}:
-                return Error[{{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}](
+                return Error[Literal[{{operation.responses_error|join(',')}}], {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}](
                     code={{code}}, result={% if type == 'None' -%}None
                                           {%- elif type.startswith('Union[') and type.endswith(']') -%}
                                               {%- set instantiable_type = type[6:-1].split(',')[0] -%}

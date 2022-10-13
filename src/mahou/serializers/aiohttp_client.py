@@ -107,7 +107,6 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
             parsed_type = schema_type.type
             if schema_type.enum:
                 serialized_type = f'Literal[{",".join([repr(v) for v in schema_type.enum])}]'
-                self.need_typing['literal'] = True
             elif isinstance(parsed_type, PrimitiveType):
                 if parsed_type is PrimitiveType.STR and schema_type.format is not None:
                     match = STR_FORMATS.get(schema_type.format, None)
