@@ -18,6 +18,7 @@ STR_FORMATS_IMPORTS = {
     'datetime': 'from datetime import datetime',
 }
 
+
 class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
     def __init__(self):
         self.need_typing = {}

@@ -10,7 +10,6 @@ python = "^3.10"
 Jinja2 = "^3.1.2"
 black = "^22.10.0"
 isort = "^5.10.1"
-pydantic = "^1.10.2"
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,5 +1,7 @@
 from enum import Enum
-from typing import {% if need_typing.any %}Any, {% endif %}Generic, Optional, {% if need_typing.union %}Union, {% endif %}TypeVar
+from typing import {% if need_typing.any %}Any, {% endif %}Generic, Optional, {% if need_typing.union %}Union, {% endif %}TypeVar, TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing_extensions import StrictTypeGuard
 {% for import in extra_imports -%}
 {{import}}
 {% endfor -%}
@@ -14,21 +16,24 @@ from .model import (
 )
 {% endif %}
 
-Success = TypeVar('Success')
-Error = TypeVar('Error')
+TSuccess = TypeVar('TSuccess')
+TError = TypeVar('TError')
 
 
-class Maybe(Generic[Success, Error]):
-    def __init__(self, code: int, success: Optional[Success] = None, error: Optional[Error] = None):
-        self.code: int = code
-        self.success: Optional[Success] = success
-        self.error: Optional[Error] = error
+class Success(Generic[TSuccess]):
+    def __init__(self, code: int, result: TSuccess):
+        self.code = code
+        self.result: TSuccess = result
 
 
-class Surely(Generic[Success]):
-    def __init__(self, code: int, success: Success):
-        self.code: int = code
-        self.success: Success = success
+class Error(Generic[TError]):
+    def __init__(self, code: int, result: TError):
+        self.code = code
+        self.result: TError = result
+
+
+def success(maybe: Success | Error) -> StrictTypeGuard[Success]:
+    return isinstance(maybe, Success)
 
 
 {% for module_name, operations in modules.items() %}
@@ -47,11 +52,7 @@ class {{module_name.capitalize()}}Module():
         {%- for arg in operation.optional_arguments -%}
             {{arg.name}}: Optional[{{arg.type}}] = None{% if not loop.last %}, {% endif %}
         {%- endfor -%}
-    ) -> {% if operation.responses_error -%}
-             Maybe[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}, {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]
-         {%- else -%}
-             Surely[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}]
-         {%- endif %}:
+    ) -> Success[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}]{% if operation.responses_error %} | Error[{{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]{% endif %}:
         url = f'{self.server_url}{{operation.endpoint}}'
 
         {%- if operation.query_parameters %}
@@ -73,42 +74,37 @@ class {{module_name.capitalize()}}Module():
         ) as resp:
             {%- for code, type in operation.responses_success.items() %}
             if resp.status == {{code}}:
-                {% if operation.responses_error -%}
-                return Maybe[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}, {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]
-                {%- else -%}
-                return Surely[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}]
-                {%- endif -%}
-                (code={{code}}, success={% if type == 'None' -%}None
-                                        {%- elif type.startswith('Union[') and type.endswith(']') -%}
-                                            {%- set instantiable_type = type[6:-1].split(',')[0] -%}
-                                            {%- if instantiable_type.startswith('list[') and instantiable_type.endswith(']') -%}
-                                                [{{instantiable_type[5:-1]}}(**e) for e in (await resp.json())]
-                                            {%- else -%}
-                                                {{instantiable_type}}(**(await resp.json()))
-                                            {%- endif -%}
-                                        {%- elif type.startswith('list[') and type.endswith(']') -%}
-                                            [{{type[5:-1]}}(**e) for e in (await resp.json())]
-                                        {%- else -%}
-                                            {{type}}(**(await resp.json()))
-                                        {%- endif -%})
+                return Success[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}](
+                    code={{code}}, result={% if type == 'None' -%}None
+                                          {%- elif type.startswith('Union[') and type.endswith(']') -%}
+                                              {%- set instantiable_type = type[6:-1].split(',')[0] -%}
+                                              {%- if instantiable_type.startswith('list[') and instantiable_type.endswith(']') -%}
+                                                  [{{instantiable_type[5:-1]}}(**e) for e in (await resp.json())]
+                                              {%- else -%}
+                                                  {{instantiable_type}}(**(await resp.json()))
+                                              {%- endif -%}
+                                          {%- elif type.startswith('list[') and type.endswith(']') -%}
+                                              [{{type[5:-1]}}(**e) for e in (await resp.json())]
+                                          {%- else -%}
+                                              {{type}}(**(await resp.json()))
+                                          {%- endif -%})
             {%- endfor %}
             {%- for code, type in operation.responses_error.items() %}
             if resp.status == {{code}}:
-                return Maybe[{{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}, {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]
-                {%- if True -%}{%- endif -%}
-                (code={{code}}, error={% if type == 'None' -%}None
-                                      {%- elif type.startswith('Union[') and type.endswith(']') -%}
-                                          {%- set instantiable_type = type[6:-1].split(',')[0] -%}
-                                          {%- if instantiable_type.startswith('list[') and instantiable_type.endswith(']') -%}
-                                              [{{instantiable_type[5:-1]}}(**e) for e in (await resp.json())]
+                return Error[{{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}](
+                    code={{code}}, result={% if type == 'None' -%}None
+                                          {%- elif type.startswith('Union[') and type.endswith(']') -%}
+                                              {%- set instantiable_type = type[6:-1].split(',')[0] -%}
+                                              {%- if instantiable_type.startswith('list[') and instantiable_type.endswith(']') -%}
+                                                  [{{instantiable_type[5:-1]}}(**e) for e in (await resp.json())]
+                                              {%- else -%}
+                                                  {{instantiable_type}}(**(await resp.json()))
+                                              {%- endif -%}
+                                          {%- elif type.startswith('list[') and type.endswith(']') -%}
+                                              [{{type[5:-1]}}(**e) for e in (await resp.json())]
                                           {%- else -%}
-                                              {{instantiable_type}}(**(await resp.json()))
-                                          {%- endif -%}
-                                      {%- elif type.startswith('list[') and type.endswith(']') -%}
-                                          [{{type[5:-1]}}(**e) for e in (await resp.json())]
-                                      {%- else -%}
-                                          {{type}}(**(await resp.json()))
-                                      {%- endif -%})
+                                              {{type}}(**(await resp.json()))
+                                          {%- endif -%})
             {%- endfor %}
             raise aiohttp.ClientResponseError(resp.request_info, resp.history, status=resp.status, message=resp.reason, headers=resp.headers)
 {% endfor %}

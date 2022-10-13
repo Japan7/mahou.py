@@ -18,6 +18,7 @@ STR_FORMATS_IMPORTS = {
     'datetime': 'from datetime import datetime',
 }
 
+
 class OpenAPIModelSerializer(Serializer[list[Schema]]):
     def __init__(self):
         self.need_typing = {}
