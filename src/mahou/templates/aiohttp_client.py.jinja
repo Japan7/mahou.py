@@ -53,7 +53,7 @@ class {{module_name.capitalize()}}Module():
         {%- for arg in operation.optional_arguments -%}
             {{arg.name}}: Optional[{{arg.type}}] = None{% if not loop.last %}, {% endif %}
         {%- endfor -%}
-    ) -> Success[Literal[{{operation.responses_success|join(',')}}], {{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}]{% if operation.responses_error %} | Error[Literal[{{operation.responses_error|join(',')}}], {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}]{% endif %}:
+    ) -> Success[Literal[{{operation.responses_success|join(',')}}], {{operation.responses_success.values()|join(' | ')}}]{% if operation.responses_error %} | Error[Literal[{{operation.responses_error|join(',')}}], {{operation.responses_error.values()|join(' | ')}}]{% endif %}:
         url = f'{self.server_url}{{operation.endpoint}}'
 
         {%- if operation.query_parameters %}
@@ -75,7 +75,7 @@ class {{module_name.capitalize()}}Module():
         ) as resp:
             {%- for code, type in operation.responses_success.items() %}
             if resp.status == {{code}}:
-                return Success[Literal[{{operation.responses_success|join(',')}}], {{' | '.join(operation.responses_success.values()) if operation.responses_success else None}}](
+                return Success[Literal[{{operation.responses_success|join(',')}}], {{operation.responses_success.values()|join(' | ')}}](
                     code={{code}}, result={% if type == 'None' -%}None
                                           {%- elif type.startswith('Union[') and type.endswith(']') -%}
                                               {%- set instantiable_type = type[6:-1].split(',')[0] -%}
@@ -92,7 +92,7 @@ class {{module_name.capitalize()}}Module():
             {%- endfor %}
             {%- for code, type in operation.responses_error.items() %}
             if resp.status == {{code}}:
-                return Error[Literal[{{operation.responses_error|join(',')}}], {{' | '.join(operation.responses_error.values()) if operation.responses_error else None}}](
+                return Error[Literal[{{operation.responses_error|join(',')}}], {{operation.responses_error.values()|join(' | ')}}](
                     code={{code}}, result={% if type == 'None' -%}None
                                           {%- elif type.startswith('Union[') and type.endswith(']') -%}
                                               {%- set instantiable_type = type[6:-1].split(',')[0] -%}
