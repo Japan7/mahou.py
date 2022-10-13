@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 
 class PrimitiveType(Enum):
@@ -29,6 +29,7 @@ class ArrayType():
 @dataclass
 class SimpleSchema(Schema):
     type: PrimitiveType | ArrayType | UnionType
+    enum: Optional[list[Any]] = None
     format: Optional[str] = None
 
 

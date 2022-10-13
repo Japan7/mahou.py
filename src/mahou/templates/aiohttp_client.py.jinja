@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import {% if need_typing.any %}Any, {% endif %}Generic, Optional, {% if need_typing.union %}Union, {% endif %}TypeGuard, TypeVar, TYPE_CHECKING
+from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Generic, Optional, TypeGuard, TypeVar, TYPE_CHECKING
 if TYPE_CHECKING:
     from typing_extensions import StrictTypeGuard as TypeGuard  # type: ignore # noqa: F811
 {% for import in extra_imports -%}

@@ -73,6 +73,10 @@ class OpenAPIParser(Parser[Server]):
                         property_type = PrimitiveType.ANY
                     property = SimpleSchema(title=json_property['title'],
                                             type=property_type)
+                    if 'enum' in json_property:
+                        property.enum = []
+                        for enum_value in json_property['enum']:
+                            property.enum.append(enum_value)
                     if 'format' in json_property:
                         property.format = json_property['format']
 
@@ -194,6 +198,10 @@ class OpenAPIParser(Parser[Server]):
                 schema_type = PrimitiveType.ANY
 
             schema = SimpleSchema(title=input['title'], type=schema_type)
+            if 'enum' in input:
+                schema.enum = []
+                for enum_value in input['enum']:
+                    schema.enum.append(enum_value)
             if 'format' in input:
                 schema.format = input['format']
             return schema
