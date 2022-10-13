@@ -1,9 +1,11 @@
 from collections import defaultdict
+
 import black
+import isort
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from mahou.models.openapi import (ArrayType, ComplexSchema, ParameterPosition, PrimitiveType,
-                                  Schema, Server, SimpleSchema, UnionType)
+from mahou.models.openapi import (ArrayType, ComplexSchema, ParameterPosition,
+                                  PrimitiveType, Schema, Server, SimpleSchema, UnionType)
 from mahou.serializers.abc import Serializer
 
 
@@ -72,10 +74,14 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
         jinja_env = Environment(loader=PackageLoader('mahou'), autoescape=select_autoescape())
         template = jinja_env.get_template('aiohttp_client.py.jinja')
 
-        return black.format_file_contents(template.render(servers=servers, modules=modules,
-                                                          need_typing=self.need_typing,
-                                                          model_types=self.model_types),
-                                          fast=False, mode=black.FileMode())
+        return isort.code(
+            black.format_file_contents(template.render(
+                servers=servers,
+                modules=modules,
+                need_typing=self.need_typing,
+                model_types=self.model_types),
+                                       fast=False,
+                                       mode=black.FileMode()))
 
     def serialize_type(self, parsed_type: Schema | None) -> str:
         if not parsed_type:

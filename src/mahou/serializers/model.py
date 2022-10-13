@@ -1,10 +1,11 @@
 import re
 
 import black
+import isort
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from mahou.models.openapi import (ArrayType, ComplexSchema, EnumSchema, PrimitiveType, Schema,
-                                  SimpleSchema, UnionType)
+from mahou.models.openapi import (ArrayType, ComplexSchema, EnumSchema,
+                                  PrimitiveType, Schema, SimpleSchema, UnionType)
 from mahou.serializers.abc import Serializer
 
 STR_FORMATS = {
@@ -55,10 +56,14 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
         jinja_env = Environment(loader=PackageLoader('mahou'), autoescape=select_autoescape())
         template = jinja_env.get_template('model.py.jinja')
 
-        return black.format_file_contents(template.render(enums=enums, dataclasses=dataclasses,
-                                                          need_typing=self.need_typing,
-                                                          extra_imports=self.extra_imports),
-                                          fast=False, mode=black.FileMode())
+        return isort.code(
+            black.format_file_contents(template.render(
+                enums=enums,
+                dataclasses=dataclasses,
+                need_typing=self.need_typing,
+                extra_imports=self.extra_imports),
+                                       fast=False,
+                                       mode=black.FileMode()))
 
     def serialize_type(self, parsed_type: Schema | None) -> str:
         if not parsed_type:
