@@ -11,7 +11,7 @@ from .model import (
 {%- for model_type in model_types -%}
     {{model_type}}{% if not loop.last %}, {% endif %}
 {%- endfor -%}
-, ModelFactory)
+)
 {% endif %}
 
 Success = TypeVar('Success')
@@ -82,14 +82,14 @@ class {{module_name.capitalize()}}Module():
                                         {%- elif type.startswith('Union[') and type.endswith(']') -%}
                                             {%- set instantiable_type = type[6:-1].split(',')[0] -%}
                                             {%- if instantiable_type.startswith('list[') and instantiable_type.endswith(']') -%}
-                                                [ModelFactory.{{instantiable_type[5:-1]}}_from_dict(e) for e in await resp.json()]
+                                                [{{instantiable_type[5:-1]}}(**e) for e in (await resp.json())]
                                             {%- else -%}
-                                                ModelFactory.{{instantiable_type}}_from_dict(await resp.json())
+                                                {{instantiable_type}}(**(await resp.json()))
                                             {%- endif -%}
                                         {%- elif type.startswith('list[') and type.endswith(']') -%}
-                                            [ModelFactory.{{type[5:-1]}}_from_dict(e) for e in await resp.json()]
+                                            [{{type[5:-1]}}(**e) for e in (await resp.json())]
                                         {%- else -%}
-                                            ModelFactory.{{type}}_from_dict(await resp.json())
+                                            {{type}}(**(await resp.json()))
                                         {%- endif -%})
             {%- endfor %}
             {%- for code, type in operation.responses_error.items() %}
@@ -100,14 +100,14 @@ class {{module_name.capitalize()}}Module():
                                       {%- elif type.startswith('Union[') and type.endswith(']') -%}
                                           {%- set instantiable_type = type[6:-1].split(',')[0] -%}
                                           {%- if instantiable_type.startswith('list[') and instantiable_type.endswith(']') -%}
-                                              [ModelFactory.{{instantiable_type[5:-1]}}_from_dict(e) for e in await resp.json()]
+                                              [{{instantiable_type[5:-1]}}(**e) for e in (await resp.json())]
                                           {%- else -%}
-                                              ModelFactory.{{instantiable_type}}_from_dict(await resp.json())
+                                              {{instantiable_type}}(**(await resp.json()))
                                           {%- endif -%}
                                       {%- elif type.startswith('list[') and type.endswith(']') -%}
-                                          [ModelFactory.{{type[5:-1]}}_from_dict(e) for e in await resp.json()]
+                                          [{{type[5:-1]}}(**e) for e in (await resp.json())]
                                       {%- else -%}
-                                          ModelFactory.{{type}}_from_dict(await resp.json())
+                                          {{type}}(**(await resp.json()))
                                       {%- endif -%})
             {%- endfor %}
             raise aiohttp.ClientResponseError(resp.request_info, resp.history, status=resp.status, message=resp.reason, headers=resp.headers)

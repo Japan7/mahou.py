@@ -1,5 +1,5 @@
 {% if dataclasses -%}
-from dataclasses import dataclass
+from pydantic.dataclasses import dataclass
 {% endif -%}
 {% if enums -%}
 from enum import Enum
@@ -28,39 +28,4 @@ class {{dataclass.name}}():
     {{element.name}}{% if element.type %}: Optional[{{element.type}}] = None{% endif %}
 {%- endfor %}
 
-{% endfor %}
-class ModelFactory():
-{% for enum in enums %}
-    @staticmethod
-    def {{enum.name}}_from_dict(input) -> {{enum.name}}:
-        return {{enum.name}}(input)
-{% endfor %}
-{%- for dataclass in dataclasses %}
-    @staticmethod
-    def {{dataclass.name}}_from_dict(input) -> {{dataclass.name}}:
-        return {{dataclass.name}}(
-            {%- for element in dataclass.required_elements -%}
-                {{element.name}}=
-                {%- if element.type.startswith("'") and element.type.endswith("'") -%}
-                    ModelFactory.{{element.type[1:-1]}}_from_dict(input['{{element.name}}'])
-                {%- elif element.type.startswith("list['") and element.type.endswith("']") -%}
-                    [ModelFactory.{{element.type[6:-2]}}_from_dict(e) for e in input['{{element.name}}']]
-                {%- else -%}
-                    input['{{element.name}}']
-                {%- endif -%}
-                {%- if not loop.last %}, {% endif -%}
-            {%- endfor -%}
-            {%- if dataclass.required_elements and dataclass.optional_elements %}, {% endif -%}
-            {%- for element in dataclass.optional_elements -%}
-                {{element.name}}=
-                {%- if element.type.startswith("'") and element.type.endswith("'") -%}
-                    ModelFactory.{{element.type[1:-1]}}_from_dict(input['{{element.name}}'])
-                {%- elif element.type.startswith("list['") and element.type.endswith("']") -%}
-                    [ModelFactory.{{element.type[6:-2]}}_from_dict(e) for e in input['{{element.name}}']]
-                {%- else -%}
-                    input['{{element.name}}']
-                {%- endif %} if '{{element.name}}' in input else None
-                {%- if not loop.last %}, {% endif -%}
-            {%- endfor -%}
-        )
 {% endfor %}
