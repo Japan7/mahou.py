@@ -1,6 +1,9 @@
 import json
 from typing import {% if need_typing.any %}Any, {% endif %}Generic, Mapping, Optional, {% if need_typing.union %}Union, {% endif %}TypeVar
 from urllib import parse
+{% for import in extra_imports -%}
+{{import}}
+{% endfor -%}
 
 import aiohttp
 

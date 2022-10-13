@@ -8,11 +8,21 @@ from mahou.models.openapi import (ArrayType, ComplexSchema, ParameterPosition,
                                   PrimitiveType, Schema, Server, SimpleSchema, UnionType)
 from mahou.serializers.abc import Serializer
 
+STR_FORMATS = {
+    'uuid': 'UUID',
+    'date-time': 'datetime',
+}
+
+STR_FORMATS_IMPORTS = {
+    'UUID': 'from uuid import UUID',
+    'datetime': 'from datetime import datetime',
+}
 
 class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
     def __init__(self):
         self.need_typing = {}
         self.model_types = set()
+        self.extra_imports = set()
 
     def serialize(self, input: Server) -> str:
         servers = []
@@ -79,7 +89,8 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                 servers=servers,
                 modules=modules,
                 need_typing=self.need_typing,
-                model_types=self.model_types),
+                model_types=self.model_types,
+                extra_imports=self.extra_imports),
                                        fast=False,
                                        mode=black.FileMode()))
 
@@ -94,7 +105,17 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
         if isinstance(schema_type, SimpleSchema):
             parsed_type = schema_type.type
             if isinstance(parsed_type, PrimitiveType):
-                serialized_type = parsed_type.value
+                if parsed_type is PrimitiveType.STR and schema_type.format is not None:
+                    match = STR_FORMATS.get(schema_type.format, None)
+                    if match is not None:
+                        serialized_type = match
+                        extra_import = STR_FORMATS_IMPORTS.get(match, None)
+                        if extra_import is not None:
+                            self.extra_imports.add(extra_import)
+                    else:  # fallback
+                        serialized_type = PrimitiveType.ANY.value
+                else:
+                    serialized_type = parsed_type.value
                 if parsed_type == PrimitiveType.ANY:
                     self.need_typing['any'] = True
             elif isinstance(parsed_type, ArrayType):
