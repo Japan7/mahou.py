@@ -23,7 +23,7 @@ class UnionType():
 
 @dataclass
 class ArrayType():
-    items: Union[UnionType, 'ComplexSchema', PrimitiveType]
+    items: Union[UnionType, 'ComplexSchema', PrimitiveType, 'ArrayType']
 
 
 @dataclass

@@ -107,6 +107,8 @@ class OpenAPIParser(Parser[Server]):
                 items = cast(ComplexSchema, self.schema_from_json(input[ref_schema_title], input))
         elif 'anyOf' in json_array:
             items = self.union_type_from_json(json_array['anyOf'], input)
+        elif json_array['type'] == 'array':
+            items = self.array_type_from_json(json_array['items'], input)
         else:
             items = self.primitive_type_from_json(json_array['type'])
 
@@ -217,6 +219,8 @@ class OpenAPIParser(Parser[Server]):
             items = cast(ComplexSchema, self.parsed_schemas[ref_schema_title])
         elif 'anyOf' in json_array:
             items = self.lookup_union_type_from_json(json_array['anyOf'])
+        elif json_array['type'] == 'array':
+            items = self.lookup_array_type_from_json(json_array['items'])
         else:
             items = self.primitive_type_from_json(json_array['type'])
 

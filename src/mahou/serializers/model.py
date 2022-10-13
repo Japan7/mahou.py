@@ -125,5 +125,7 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
             serialized_type = items.value
             if items == PrimitiveType.ANY:
                 self.need_typing['any'] = True
+        elif isinstance(items, ArrayType):
+            serialized_type = self.serialize_array_type(items)
 
         return f'list[{serialized_type}]'
