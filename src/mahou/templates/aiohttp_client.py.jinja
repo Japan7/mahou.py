@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Generic, Literal, Optional, TypeGuard, TypeVar, TYPE_CHECKING
 if TYPE_CHECKING:
@@ -21,16 +22,16 @@ TSuccess = TypeVar('TSuccess')
 TError = TypeVar('TError')
 
 
+@dataclass(frozen=True, slots=True)
 class Success(Generic[TCode, TSuccess]):
-    def __init__(self, code: TCode, result: TSuccess):
-        self.code: TCode = code
-        self.result: TSuccess = result
+    self.code: TCode
+    self.result: TSuccess
 
 
+@dataclass(frozen=True, slots=True)
 class Error(Generic[TCode, TError]):
-    def __init__(self, code: TCode, result: TError):
-        self.code: TCode = code
-        self.result: TError = result
+    self.code: TCode
+    self.result: TError
 
 
 def success(maybe: Success | Error) -> TypeGuard[Success]:
