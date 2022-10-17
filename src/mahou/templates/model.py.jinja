@@ -30,5 +30,5 @@ class {{dataclass.name}}():
 {% endfor %}
 
 {%- for dataclass in dataclasses %}
-{{dataclass.name}}.__pydantic_model__.update_forward_refs()
+{{dataclass.name}}.__pydantic_model__.update_forward_refs()  # type: ignore
 {%- endfor %}

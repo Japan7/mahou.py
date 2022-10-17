@@ -24,14 +24,14 @@ TError = TypeVar('TError')
 
 @dataclass(frozen=True, slots=True)
 class Success(Generic[TCode, TSuccess]):
-    self.code: TCode
-    self.result: TSuccess
+    code: TCode
+    result: TSuccess
 
 
 @dataclass(frozen=True, slots=True)
 class Error(Generic[TCode, TError]):
-    self.code: TCode
-    self.result: TError
+    code: TCode
+    result: TError
 
 
 def success(maybe: Success | Error) -> TypeGuard[Success]:
@@ -116,7 +116,7 @@ class {{module_name.capitalize()}}Module():
                                               {{type}}(**(await resp.json()))
                                           {%- endif -%})
             {%- endfor %}
-            raise aiohttp.ClientResponseError(resp.request_info, resp.history, status=resp.status, message=resp.reason, headers=resp.headers)
+            raise aiohttp.ClientResponseError(resp.request_info, resp.history, status=resp.status, message=str(resp.reason), headers=resp.headers)
 {% endfor %}
 
 {% endfor %}
