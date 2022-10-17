@@ -22,13 +22,13 @@ TSuccess = TypeVar('TSuccess')
 TError = TypeVar('TError')
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Success(Generic[TCode, TSuccess]):
     code: TCode
     result: TSuccess
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Error(Generic[TCode, TError]):
     code: TCode
     result: TError
