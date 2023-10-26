@@ -10,6 +10,7 @@ from ruff.__main__ import find_ruff_bin
 
 from mahou.models.openapi import (
     ArrayType,
+    BodySchema,
     ComplexSchema,
     ParameterPosition,
     PrimitiveType,
@@ -29,6 +30,8 @@ STR_FORMATS_IMPORTS = {
     "UUID": "from uuid import UUID",
     "datetime": "from datetime import datetime",
 }
+
+FORM_IMPORT = "from dataclasses import asdict"
 
 
 class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
@@ -85,6 +88,13 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                     else:
                         operation["optional_arguments"].append(argument)
                         self.need_typing["optional"] = True
+                    operation["body_schema"] = (
+                        request.body.body_schema.name
+                        if request.body.body_schema
+                        else None
+                    )
+                    if request.body.body_schema is BodySchema.FORM:
+                        self.extra_imports.add(FORM_IMPORT)
 
                 for response_code, response_type in request.responses.items():
                     if response_code > 199 and response_code < 300:

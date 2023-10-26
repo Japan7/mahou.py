@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Generic, Literal, Optional, TypeGuard, TypeVar, TYPE_CHECKING
-if TYPE_CHECKING:
-    from typing_extensions import StrictTypeGuard as TypeGuard  # type: ignore # noqa: F811
+from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Generic, Literal, Optional, TypeGuard, TypeVar
+
+import aiohttp
+
 {% for import in extra_imports -%}
 {{import}}
 {% endfor -%}
-
-import aiohttp
 
 {% if model_types -%}
 from .model import (
@@ -79,7 +78,11 @@ class {{module_name.capitalize()}}Module():
             params=params,
         {%- endif %}
         {%- if operation.body -%}
+        {%- if operation.body_schema == 'JSON' -%}
             json=body,
+        {%- elif operation.body_schema == 'FORM' -%}
+            data = aiohttp.FormData(asdict(body)),
+        {%- endif -%}
         {%- endif -%}
         ) as resp:
             {%- for code, type in operation.responses_success.items() %}

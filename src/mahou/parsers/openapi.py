@@ -3,17 +3,18 @@ from typing import cast
 
 from mahou.models.openapi import (
     ArrayType,
+    BodySchema,
     ComplexSchema,
+    EnumSchema,
     Parameter,
     ParameterPosition,
     Path,
     PrimitiveType,
     Request,
     RequestMethod,
-    SimpleSchema,
-    EnumSchema,
     Schema,
     Server,
+    SimpleSchema,
     UnionType,
     Variable,
 )
@@ -171,11 +172,12 @@ class OpenAPIParser(Parser[Server]):
         return requests
 
     def request_body_from_json(self, input: dict) -> Variable:
+        content = input["content"]
+        body_schema = list(content.keys())[0]
         return Variable(
             required=input["required"],
-            type=self.lookup_schema_from_json(
-                input["content"]["application/json"]["schema"]
-            ),
+            type=self.lookup_schema_from_json(content[body_schema]["schema"]),
+            body_schema=BodySchema(body_schema),
         )
 
     def request_parameters_from_json(self, input: dict) -> list[Parameter]:
@@ -190,6 +192,7 @@ class OpenAPIParser(Parser[Server]):
                     else ParameterPosition.PATH
                 ),
                 type=self.lookup_schema_from_json(parameter_json["schema"]),
+                body_schema=None,
             )
             parameters.append(parameter)
 

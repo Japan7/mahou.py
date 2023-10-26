@@ -45,10 +45,16 @@ class EnumSchema(Schema):
     description: str
 
 
+class BodySchema(Enum):
+    JSON = "application/json"
+    FORM = "application/x-www-form-urlencoded"
+
+
 @dataclass
 class Variable:
     required: bool
     type: Schema
+    body_schema: BodySchema | None
 
 
 class ParameterPosition(Enum):
