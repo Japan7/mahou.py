@@ -28,7 +28,3 @@ class {{dataclass.name}}():
     {{element.name}}{% if element.type %}: Optional[{{element.type}}] = None{% endif %}
 {%- endfor %}
 {% endfor %}
-
-{%- for dataclass in dataclasses %}
-{{dataclass.name}}.__pydantic_model__.update_forward_refs()  # type: ignore
-{%- endfor %}
