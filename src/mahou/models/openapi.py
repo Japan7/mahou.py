@@ -4,26 +4,26 @@ from typing import Any, Optional, Union
 
 
 class PrimitiveType(Enum):
-    INT = 'int'
-    FLOAT = 'float'
-    BOOL = 'bool'
-    STR = 'str'
-    ANY = 'Any'
+    INT = "int"
+    FLOAT = "float"
+    BOOL = "bool"
+    STR = "str"
+    ANY = "Any"
 
 
 @dataclass
-class Schema():
+class Schema:
     title: str
 
 
 @dataclass
-class UnionType():
-    any_of: list[Union[PrimitiveType, 'ArrayType', Schema]]
+class UnionType:
+    any_of: list[Union[PrimitiveType, "ArrayType", Schema]]
 
 
 @dataclass
-class ArrayType():
-    items: Union[UnionType, 'ComplexSchema', PrimitiveType, 'ArrayType']
+class ArrayType:
+    items: Union[UnionType, "ComplexSchema", PrimitiveType, "ArrayType"]
 
 
 @dataclass
@@ -46,7 +46,7 @@ class EnumSchema(Schema):
 
 
 @dataclass
-class Variable():
+class Variable:
     required: bool
     type: Schema
 
@@ -63,15 +63,15 @@ class Parameter(Variable):
 
 
 class RequestMethod(Enum):
-    GET = 'get'
-    POST = 'post'
-    PATCH = 'patch'
-    DELETE = 'delete'
-    PUT = 'put'
+    GET = "get"
+    POST = "post"
+    PATCH = "patch"
+    DELETE = "delete"
+    PUT = "put"
 
 
 @dataclass
-class Request():
+class Request:
     method: RequestMethod
     summary: Optional[str]
     operation_id: Optional[str]
@@ -82,13 +82,13 @@ class Request():
 
 
 @dataclass
-class Path():
+class Path:
     endpoint: str
     requests: list[Request]
 
 
 @dataclass
-class Server():
+class Server:
     title: str
     version: str
     urls: list[str]
