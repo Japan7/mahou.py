@@ -1,5 +1,5 @@
 import json
-from typing import cast
+from typing import cast, override
 
 from mahou.models.openapi import (
     ArrayType,
@@ -25,6 +25,7 @@ class OpenAPIParser(Parser[Server]):
     def __init__(self):
         self.parsed_schemas = {}
 
+    @override
     def parse(self, input: str) -> Server:
         return self.server_from_json(json.loads(input))
 
@@ -59,7 +60,6 @@ class OpenAPIParser(Parser[Server]):
         if "enum" in json_schema:
             return EnumSchema(
                 title=json_schema["title"],
-                description=json_schema["description"],
                 enum_values=json_schema["enum"],
             )
         else:
@@ -77,7 +77,7 @@ class OpenAPIParser(Parser[Server]):
                         property = self.schema_from_json(input[ref_schema_title], input)
                 elif "anyOf" in json_property:
                     property = SimpleSchema(
-                        title=json_property["title"],
+                        title=json_property.get("title", None),
                         type=self.union_type_from_json(json_property["anyOf"], input),
                     )
                 else:
@@ -92,14 +92,11 @@ class OpenAPIParser(Parser[Server]):
                     else:
                         property_type = PrimitiveType.ANY
                     property = SimpleSchema(
-                        title=json_property["title"], type=property_type
+                        title=json_property["title"],
+                        type=property_type,
+                        format=json_property.get("format", None),
+                        enum=json_property.get("enum", None),
                     )
-                    if "enum" in json_property:
-                        property.enum = []
-                        for enum_value in json_property["enum"]:
-                            property.enum.append(enum_value)
-                    if "format" in json_property:
-                        property.format = json_property["format"]
 
                 schema.properties[name] = property
 
@@ -119,7 +116,15 @@ class OpenAPIParser(Parser[Server]):
                 if json_type == "array":
                     any_of.append(self.array_type_from_json(t["items"], input))
                 else:
-                    any_of.append(self.primitive_type_from_json(json_type))
+                    item_type = self.primitive_type_from_json(json_type)
+                    if "format" in t or "enum" in t:
+                        item_type = SimpleSchema(
+                            title=t.get("title", None),
+                            type=item_type,
+                            format=t.get("format", None),
+                            enum=t.get("enum", None),
+                        )
+                    any_of.append(item_type)
 
         return UnionType(any_of=any_of)
 
@@ -232,13 +237,12 @@ class OpenAPIParser(Parser[Server]):
             else:
                 schema_type = PrimitiveType.ANY
 
-            schema = SimpleSchema(title=input["title"], type=schema_type)
-            if "enum" in input:
-                schema.enum = []
-                for enum_value in input["enum"]:
-                    schema.enum.append(enum_value)
-            if "format" in input:
-                schema.format = input["format"]
+            schema = SimpleSchema(
+                title=input["title"],
+                type=schema_type,
+                format=input.get("format", None),
+                enum=input.get("enum", None),
+            )
             return schema
 
     def lookup_union_type_from_json(self, json_union: dict) -> UnionType:
@@ -252,7 +256,15 @@ class OpenAPIParser(Parser[Server]):
                 if json_type == "array":
                     any_of.append(self.lookup_array_type_from_json(t["items"]))
                 else:
-                    any_of.append(self.primitive_type_from_json(json_type))
+                    item_type = self.primitive_type_from_json(json_type)
+                    if "format" in t or "enum" in t:
+                        item_type = SimpleSchema(
+                            title=t.get("title", None),
+                            type=item_type,
+                            format=t.get("format", None),
+                            enum=t.get("enum", None),
+                        )
+                    any_of.append(item_type)
 
         return UnionType(any_of=any_of)
 
@@ -278,5 +290,7 @@ class OpenAPIParser(Parser[Server]):
             return PrimitiveType.BOOL
         elif json_type == "string":
             return PrimitiveType.STR
+        elif json_type == "null":
+            return PrimitiveType.NONE
         else:
             raise NotImplementedError(f"Unknown primitive type {json_type}")

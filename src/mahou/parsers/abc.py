@@ -1,9 +1,7 @@
-from typing import Generic, TypeVar
+from abc import ABC, abstractmethod
 
 
-T = TypeVar("T")
-
-
-class Parser(Generic[T]):
+class Parser[T](ABC):
+    @abstractmethod
     def parse(self, _: str) -> T:
         raise NotImplementedError()

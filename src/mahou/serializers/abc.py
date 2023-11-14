@@ -1,9 +1,7 @@
-from typing import Generic, TypeVar
+from abc import ABC, abstractmethod
 
 
-T = TypeVar("T")
-
-
-class Serializer(Generic[T]):
-    def serilize(self, _: T) -> str:
+class Serializer[T](ABC):
+    @abstractmethod
+    def serialize(self, _: T) -> str:
         raise NotImplementedError()

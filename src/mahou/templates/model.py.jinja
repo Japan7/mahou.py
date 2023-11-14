@@ -25,6 +25,6 @@ class {{dataclass.name}}():
     {{element.name}}{% if element.type %}: {{element.type}}{% endif %}
 {%- endfor -%}
 {%- for element in dataclass.optional_elements %}
-    {{element.name}}{% if element.type %}: Optional[{{element.type}}] = None{% endif %}
+    {{element.name}}{% if element.type %}: {{element.type}} | None = None{% endif %}
 {%- endfor %}
 {% endfor %}

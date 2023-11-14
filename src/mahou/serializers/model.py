@@ -67,10 +67,11 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
                         dataclass["optional_elements"].append(
                             {"name": property_name, "type": serialized_type}
                         )
-                        self.need_typing["optional"] = True
 
                 if dataclass["name"] not in [d["name"] for d in dataclasses]:
                     dataclasses.append(dataclass)
+            else:
+                raise RuntimeError("Unknown schema")
 
         jinja_env = Environment(
             loader=PackageLoader("mahou"), autoescape=select_autoescape()
@@ -83,6 +84,10 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
             need_typing=self.need_typing,
             extra_imports=self.extra_imports,
         )
+
+        # FIXME: I'm lazy
+        rendered = rendered.replace(" | None | None", " | None")
+        rendered = rendered.replace("' | None", " | None'")
 
         imports_fixed = isort.code(
             autoflake.fix_code(rendered, remove_all_unused_imports=True)
@@ -101,12 +106,12 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
 
     def serialize_type(self, parsed_type: Schema | None) -> str:
         if not parsed_type:
-            return "None"
+            return PrimitiveType.NONE.value
 
         return self.serialize_schema_type(parsed_type)
 
     def serialize_schema_type(self, schema_type: Schema) -> str:
-        serialized_type = ""
+        serialized_type = f"'{schema_type.title}'"
         if isinstance(schema_type, SimpleSchema):
             parsed_type = schema_type.type
             if schema_type.enum:
@@ -126,14 +131,14 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
                         serialized_type = PrimitiveType.ANY.value
                 else:
                     serialized_type = parsed_type.value
-                if parsed_type == PrimitiveType.ANY:
+                if parsed_type is PrimitiveType.ANY:
                     self.need_typing["any"] = True
             elif isinstance(parsed_type, ArrayType):
                 serialized_type = self.serialize_array_type(parsed_type)
             elif isinstance(parsed_type, UnionType):
                 serialized_type = self.serialize_union_type(parsed_type)
-        else:
-            serialized_type = f"'{schema_type.title}'"
+            else:
+                raise RuntimeError("Unknown type")
 
         return serialized_type
 
@@ -142,28 +147,30 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
         for t in union_type.any_of:
             if isinstance(t, PrimitiveType):
                 serialized_type_array.append(t.value)
-                if t == PrimitiveType.ANY:
+                if t is PrimitiveType.ANY:
                     self.need_typing["any"] = True
-            elif isinstance(t, ComplexSchema):
-                serialized_type_array.append(self.serialize_schema_type(t))
             elif isinstance(t, ArrayType):
                 serialized_type_array.append(self.serialize_array_type(t))
+            elif isinstance(t, Schema):
+                serialized_type_array.append(self.serialize_schema_type(t))
+            else:
+                raise RuntimeError("Unknown type")
 
-        self.need_typing["union"] = True
-        return f'Union[{",".join(serialized_type_array)}]'
+        return " | ".join(serialized_type_array)
 
     def serialize_array_type(self, array_type: ArrayType) -> str:
         items = array_type.items
-        serialized_type = ""
-        if isinstance(items, UnionType):
-            serialized_type = self.serialize_union_type(items)
-        elif isinstance(items, ComplexSchema):
-            serialized_type = self.serialize_schema_type(items)
-        elif isinstance(items, PrimitiveType):
+        if isinstance(items, PrimitiveType):
             serialized_type = items.value
-            if items == PrimitiveType.ANY:
+            if items is PrimitiveType.ANY:
                 self.need_typing["any"] = True
         elif isinstance(items, ArrayType):
             serialized_type = self.serialize_array_type(items)
+        elif isinstance(items, UnionType):
+            serialized_type = self.serialize_union_type(items)
+        elif isinstance(items, Schema):
+            serialized_type = self.serialize_schema_type(items)
+        else:
+            raise RuntimeError("Unknown type")
 
         return f"list[{serialized_type}]"

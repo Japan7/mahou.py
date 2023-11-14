@@ -2,6 +2,7 @@ import os
 import subprocess
 import tempfile
 from collections import defaultdict
+from typing import override
 
 import autoflake
 import isort
@@ -11,7 +12,6 @@ from ruff.__main__ import find_ruff_bin
 from mahou.models.openapi import (
     ArrayType,
     BodySchema,
-    ComplexSchema,
     ParameterPosition,
     PrimitiveType,
     Schema,
@@ -40,6 +40,7 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
         self.model_types = set()
         self.extra_imports = set()
 
+    @override
     def serialize(self, input: Server) -> str:
         servers = []
         modules = defaultdict(list)
@@ -70,9 +71,8 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                         operation["required_arguments"].append(argument)
                     else:
                         operation["optional_arguments"].append(argument)
-                        self.need_typing["optional"] = True
 
-                    if parameter.position == ParameterPosition.QUERY:
+                    if parameter.position is ParameterPosition.QUERY:
                         operation["query_parameters"].append(parameter.name)
                     else:
                         operation["path_parameters"].append(parameter.name)
@@ -87,7 +87,6 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                         operation["required_arguments"].append(argument)
                     else:
                         operation["optional_arguments"].append(argument)
-                        self.need_typing["optional"] = True
                     operation["body_schema"] = (
                         request.body.body_schema.name
                         if request.body.body_schema
@@ -122,6 +121,9 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
             extra_imports=self.extra_imports,
         )
 
+        # FIXME: I'm lazy
+        rendered = rendered.replace(" | None | None", " | None")
+
         imports_fixed = isort.code(
             autoflake.fix_code(rendered, remove_all_unused_imports=True)
         )
@@ -139,12 +141,11 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
 
     def serialize_type(self, parsed_type: Schema | None) -> str:
         if not parsed_type:
-            return "None"
+            return PrimitiveType.NONE.value
 
         return self.serialize_schema_type(parsed_type)
 
     def serialize_schema_type(self, schema_type: Schema) -> str:
-        serialized_type = ""
         if isinstance(schema_type, SimpleSchema):
             parsed_type = schema_type.type
             if schema_type.enum:
@@ -163,12 +164,14 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
                         serialized_type = PrimitiveType.ANY.value
                 else:
                     serialized_type = parsed_type.value
-                if parsed_type == PrimitiveType.ANY:
+                if parsed_type is PrimitiveType.ANY:
                     self.need_typing["any"] = True
             elif isinstance(parsed_type, ArrayType):
                 serialized_type = self.serialize_array_type(parsed_type)
             elif isinstance(parsed_type, UnionType):
                 serialized_type = self.serialize_union_type(parsed_type)
+            else:
+                raise RuntimeError("Unknown type")
         else:
             serialized_type = schema_type.title
             self.model_types.add(serialized_type)
@@ -180,27 +183,30 @@ class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
         for t in union_type.any_of:
             if isinstance(t, PrimitiveType):
                 serialized_type_array.append(t.value)
-                if t == PrimitiveType.ANY:
+                if t is PrimitiveType.ANY:
                     self.need_typing["any"] = True
-            elif isinstance(t, ComplexSchema):
-                serialized_type_array.append(t.title)
-                self.model_types.add(t.title)
             elif isinstance(t, ArrayType):
                 serialized_type_array.append(self.serialize_array_type(t))
+            elif isinstance(t, Schema):
+                serialized_type_array.append(self.serialize_schema_type(t))
+            else:
+                raise RuntimeError("Unknown type")
 
-        self.need_typing["union"] = True
-        return f'Union[{",".join(serialized_type_array)}]'
+        return " | ".join(serialized_type_array)
 
     def serialize_array_type(self, array_type: ArrayType) -> str:
         items = array_type.items
-        serialized_type = ""
-        if isinstance(items, UnionType):
-            serialized_type = self.serialize_union_type(items)
-        elif isinstance(items, ComplexSchema):
-            serialized_type = self.serialize_schema_type(items)
-        elif isinstance(items, PrimitiveType):
+        if isinstance(items, PrimitiveType):
             serialized_type = items.value
-            if items == PrimitiveType.ANY:
+            if items is PrimitiveType.ANY:
                 self.need_typing["any"] = True
+        elif isinstance(items, ArrayType):
+            serialized_type = self.serialize_array_type(items)
+        elif isinstance(items, UnionType):
+            serialized_type = self.serialize_union_type(items)
+        elif isinstance(items, Schema):
+            serialized_type = self.serialize_schema_type(items)
+        else:
+            raise RuntimeError("Unknown type")
 
         return f"list[{serialized_type}]"

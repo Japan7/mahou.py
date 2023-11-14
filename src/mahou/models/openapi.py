@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union
 
 
 class PrimitiveType(Enum):
@@ -9,6 +8,7 @@ class PrimitiveType(Enum):
     BOOL = "bool"
     STR = "str"
     ANY = "Any"
+    NONE = "None"
 
 
 @dataclass
@@ -18,19 +18,19 @@ class Schema:
 
 @dataclass
 class UnionType:
-    any_of: list[Union[PrimitiveType, "ArrayType", Schema]]
+    any_of: list["PrimitiveType | ArrayType | Schema"]
 
 
 @dataclass
 class ArrayType:
-    items: Union[UnionType, "ComplexSchema", PrimitiveType, "ArrayType"]
+    items: "PrimitiveType | ArrayType | UnionType | Schema"
 
 
 @dataclass
 class SimpleSchema(Schema):
     type: PrimitiveType | ArrayType | UnionType
-    enum: Optional[list[Any]] = None
-    format: Optional[str] = None
+    enum: list | None = None
+    format: str | None = None
 
 
 @dataclass
@@ -42,7 +42,6 @@ class ComplexSchema(Schema):
 @dataclass
 class EnumSchema(Schema):
     enum_values: list[str]
-    description: str
 
 
 class BodySchema(Enum):
@@ -79,12 +78,12 @@ class RequestMethod(Enum):
 @dataclass
 class Request:
     method: RequestMethod
-    summary: Optional[str]
-    operation_id: Optional[str]
+    summary: str | None
+    operation_id: str | None
     parameters: list[Parameter]
-    responses: dict[int, Optional[Schema]]
+    responses: dict[int, Schema | None]
     tags: list[str]
-    body: Optional[Variable] = None
+    body: Variable | None = None
 
 
 @dataclass
