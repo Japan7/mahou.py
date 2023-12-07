@@ -34,7 +34,7 @@ STR_FORMATS_IMPORTS = {
 FORM_IMPORT = "from dataclasses import asdict"
 
 
-class OpenAPIaiohttpClientSerializer(Serializer[list[Server]]):
+class OpenAPIaiohttpClientSerializer(Serializer[Server]):
     def __init__(self):
         self.need_typing = {}
         self.model_types = set()
