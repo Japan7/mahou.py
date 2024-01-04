@@ -2,8 +2,10 @@
 name = "mahou"
 version = "0.0.1"
 description = "Parser and Python code generator"
-authors = ["RhiobeT <rhiobet@gmail.com>"]
+authors = ["RhiobeT <rhiobet@gmail.com>", "NextFire <git@yuru.moe>"]
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/Japan7/mahou.py"
 
 [tool.poetry.dependencies]
 python = "~3.12"
