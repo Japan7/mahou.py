@@ -1,13 +1,8 @@
-import os
-import subprocess
 import tempfile
 from collections import defaultdict
 from typing import override
 
-import autoflake
-import isort
 from jinja2 import Environment, PackageLoader, select_autoescape
-from ruff.__main__ import find_ruff_bin
 
 from mahou.models.openapi import (
     ArrayType,
@@ -20,6 +15,7 @@ from mahou.models.openapi import (
     UnionType,
 )
 from mahou.serializers.abc import Serializer
+from mahou.utils import ruff_fix, ruff_format
 
 STR_FORMATS = {
     "uuid": "UUID",
@@ -124,18 +120,10 @@ class OpenAPIaiohttpClientSerializer(Serializer[Server]):
         # FIXME: I'm lazy
         rendered = rendered.replace(" | None | None", " | None")
 
-        imports_fixed = isort.code(
-            autoflake.fix_code(rendered, remove_all_unused_imports=True)
-        )
-
         with tempfile.NamedTemporaryFile("w") as fp:
-            fp.write(imports_fixed)
-
-            ruff = find_ruff_bin()
-            completed_process = subprocess.run([os.fsdecode(ruff), "format", fp.name])
-            if completed_process.returncode != 0:
-                raise RuntimeError("Ruff failed to format the generated code")
-
+            fp.write(rendered)
+            ruff_fix(fp.name)
+            ruff_format(fp.name)
             with open(fp.name, "r") as fp2:
                 return fp2.read()
 
