@@ -1,7 +1,19 @@
 import os
+import re
 import subprocess
+from keyword import iskeyword
 
 from ruff.__main__ import find_ruff_bin
+
+
+def alias_invalid_id(name: str) -> tuple[str, str | None]:
+    if name.isidentifier() and not iskeyword(name):
+        return name, None
+    else:
+        fixed = re.sub("[^a-zA-Z0-9_]", "_", name)
+        fixed = fixed.strip("_")
+        fixed += "_alias"
+        return fixed, name
 
 
 def ruff_fix(path: str):

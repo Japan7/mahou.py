@@ -1,6 +1,7 @@
 {% if dataclasses -%}
 from pydantic.dataclasses import dataclass
 {% endif -%}
+from pydantic import Field
 {% if enums -%}
 from enum import Enum
 {% endif -%}
@@ -23,8 +24,16 @@ class {{enum.name}}(str, Enum):
 class {{dataclass.name}}():
 {%- for element in dataclass.required_elements %}
     {{element.name}}{% if element.type %}: {{element.type}}{% endif %}
+    {%- if element.alias -%}
+    = Field(alias="{{element.alias}}")
+    {%- endif %}
 {%- endfor -%}
 {%- for element in dataclass.optional_elements %}
-    {{element.name}}{% if element.type %}: {{element.type}} | None = None{% endif %}
+    {{element.name}}{% if element.type %}: {{element.type}} | None{% endif %}
+    {%- if element.alias -%}
+    = Field(alias="{{element.alias}}", default=None)
+    {%- else -%}
+    = None
+    {%- endif %}
 {%- endfor %}
 {% endfor %}

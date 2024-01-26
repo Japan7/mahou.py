@@ -13,7 +13,7 @@ from mahou.models.openapi import (
     UnionType,
 )
 from mahou.serializers.abc import Serializer
-from mahou.utils import ruff_fix, ruff_format
+from mahou.utils import alias_invalid_id, ruff_fix, ruff_format
 
 STR_FORMATS = {
     "uuid": "UUID",
@@ -54,16 +54,18 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
                 }
                 for property_name, property_schema in schema.properties.items():
                     serialized_type = self.serialize_type(property_schema)
-
-                    if property_name in schema.required_properties:
-                        dataclass["required_elements"].append(
-                            {"name": property_name, "type": serialized_type}
-                        )
-                    else:
-                        dataclass["optional_elements"].append(
-                            {"name": property_name, "type": serialized_type}
-                        )
-
+                    name, alias = alias_invalid_id(property_name)
+                    dataclass[
+                        "required_elements"
+                        if property_name in schema.required_properties
+                        else "optional_elements"
+                    ].append(
+                        {
+                            "name": name,
+                            "type": serialized_type,
+                            "alias": alias,
+                        }
+                    )
                 if dataclass["name"] not in [d["name"] for d in dataclasses]:
                     dataclasses.append(dataclass)
             else:
