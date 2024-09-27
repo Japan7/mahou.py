@@ -23,6 +23,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
+reportDeprecated = true
 pythonVersion = "3.12"
 
 [tool.ruff]
