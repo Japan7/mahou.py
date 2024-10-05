@@ -89,6 +89,7 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
 
         with tempfile.NamedTemporaryFile("w") as fp:
             fp.write(rendered)
+            fp.flush()
             ruff_fix(fp.name)
             ruff_format(fp.name)
             with open(fp.name, "r") as fp2:
