@@ -1,6 +1,6 @@
 import tempfile
 from collections import defaultdict
-from typing import override
+from typing import TypedDict, override
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -30,6 +30,11 @@ STR_FORMATS_IMPORTS = {
 FORM_IMPORT = "from dataclasses import asdict"
 
 
+class ServerDefinition(TypedDict):
+    name: str
+    url: str
+
+
 class OpenAPIaiohttpClientSerializer(Serializer[Server]):
     def __init__(self):
         self.need_typing = {}
@@ -38,11 +43,14 @@ class OpenAPIaiohttpClientSerializer(Serializer[Server]):
 
     @override
     def serialize(self, input: Server) -> str:
-        servers = []
+        servers: list[ServerDefinition] = []
         modules = defaultdict(list)
 
-        for url in input.urls:
-            servers.append({"name": url[1:].replace("/", "_"), "url": url})
+        if len(input.urls) == 1:
+            servers.append({"name": "", "url": input.urls[0]})
+        else:
+            for url in input.urls:
+                servers.append({"name": url[1:].replace("/", "_"), "url": url})
 
         for path in input.paths:
             for request in path.requests:
