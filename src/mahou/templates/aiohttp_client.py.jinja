@@ -52,7 +52,7 @@ def prep_seq_serialization(v: Sequence[Any]) -> Sequence[SimpleQuery]:
 def prep_val_serialization(v: Any) -> QueryVariable:
     if isinstance(v, Enum):
         return prep_val_serialization(v.value)
-    elif isinstance(v, Sequence):
+    elif isinstance(v, Sequence) and not isinstance(v, str):
         return prep_seq_serialization(v)
     else:
         return prep_scalar_serializationion(v)
