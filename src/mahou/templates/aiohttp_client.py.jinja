@@ -1,8 +1,11 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Literal, TypeGuard
+from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, Literal, TypeGuard
 
 import aiohttp
+from aiohttp.typedefs import Query
+from yarl import QueryVariable, SimpleQuery
 
 {% for import in extra_imports -%}
 {{import}}
@@ -29,8 +32,40 @@ class Error[TCode, TError]:
     result: TError
 
 
-def success[S: Success](maybe: S | Error) -> TypeGuard[S]:
+def success[S: Success[Any, Any]](maybe: S | Error[Any, Any]) -> TypeGuard[S]:
     return isinstance(maybe, Success)
+
+
+def prep_scalar_serializationion(v: Any) -> SimpleQuery:
+    # SimpleQuery is str, int, float at time of writing
+    if isinstance(v, SimpleQuery):
+        return v
+    else:
+        # FIXME: breaks things, maybe
+        return str(v)
+
+
+def prep_seq_serialization(v: Sequence[Any]) -> Sequence[SimpleQuery]:
+    return tuple(prep_scalar_serializationion(lv) for lv in v)
+
+
+def prep_val_serialization(v: Any) -> QueryVariable:
+    if isinstance(v, Enum):
+        return prep_val_serialization(v.value)
+    elif isinstance(v, Sequence):
+        return prep_seq_serialization(v)
+    else:
+        return prep_scalar_serializationion(v)
+
+
+def prep_serialization(d: dict[str, Any]) -> Query:
+    for k, v in d.items():
+        if v is None:
+            del d[k]
+        else:
+            d[k] = prep_val_serialization(v)
+
+    return d
 
 
 {% for module_name, operations in modules.items() %}
@@ -61,12 +96,12 @@ class {{module_name.capitalize()}}Module():
         url = f'{self.server_url}{{operation.endpoint}}'
 
         {%- if operation.query_parameters %}
-        params = dict(
+        params = {
         {%- for parameter in operation.query_parameters -%}
-            {{parameter}}={{parameter}},
+            "{{parameter}}": {{parameter}},
         {%- endfor -%}
-        )
-        params = {k: v.value if isinstance(v, Enum) else v for k, v in params.items() if v is not None}
+        }
+        params = prep_serialization(params)
         {%- endif %}
 
         async with self.session.{{operation.method}}(url,
