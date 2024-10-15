@@ -4,7 +4,12 @@ version = "0.1.0"
 description = "Parser and Python code generator"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.12,<4"
+authors = [
+    { name = "RhiobeT", email = "rhiobet@gmail.com" },
+    { name = "NextFire", email = "git@yuru.moe" },
+    { name = "odrling", email = "florianbadie@odrling.xyz" },
+]
+requires-python = ">=3.12"
 dependencies = [
     # codegen
     "jinja2>=3,<4",
@@ -17,6 +22,9 @@ dependencies = [
 
 [tool.uv]
 dev-dependencies = ["pyright==1.1.384"]
+
+[project.urls]
+Homepage = "https://github.com/Japan7/mahou.py"
 
 [build-system]
 requires = ["hatchling"]
