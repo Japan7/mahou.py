@@ -69,7 +69,7 @@ def prep_serialization(d: dict[str, Any]) -> Query:
 class JsonDataclassEncoder(json.JSONEncoder):
 
     def default(self, o: Any):
-        if dataclasses.is_dataclass(o):
+        if dataclasses.is_dataclass(o) and not isinstance(o, type):
             return dataclasses.asdict(o)
         return super().default(o)
 
