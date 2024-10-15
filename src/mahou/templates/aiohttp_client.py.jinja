@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, Literal, TypeGuard
 
+import dataclasses
+import json
+
 import aiohttp
 from aiohttp.typedefs import Query
 from yarl import QueryVariable, SimpleQuery
@@ -61,6 +64,18 @@ def prep_val_serialization(v: Any) -> QueryVariable:
 def prep_serialization(d: dict[str, Any]) -> Query:
     return {k: prep_val_serialization(v) for k, v in d.items()
             if v is not None}
+
+
+class JsonDataclassEncoder(json.JSONEncoder):
+
+    def default(self, o: Any):
+        if dataclasses.is_dataclass(o):
+            return dataclasses.as_dict
+        return super().default(o)
+
+
+def default_json_serializer(o: Any) -> str:
+    return json.dumps(o, cls=JsonDataclassEncoder)
 
 
 {% for module_name, operations in modules.items() %}
@@ -158,6 +173,6 @@ class ClientSession(aiohttp.ClientSession):
         {% endfor %}
 
 {% for server in servers %}
-def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, *args, **kwargs) -> ClientSession:
-    return ClientSession(server_url, *args, **kwargs)
+def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, *args, json_serializer=default_json_serializer, **kwargs) -> ClientSession:
+    return ClientSession(server_url, *args, json_serializer=json_serializer, **kwargs)
 {% endfor %}
