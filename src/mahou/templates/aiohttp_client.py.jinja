@@ -70,7 +70,7 @@ class JsonDataclassEncoder(json.JSONEncoder):
 
     def default(self, o: Any):
         if dataclasses.is_dataclass(o):
-            return dataclasses.as_dict
+            return dataclasses.asdict(o)
         return super().default(o)
 
 
