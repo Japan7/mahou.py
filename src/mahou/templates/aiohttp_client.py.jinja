@@ -125,7 +125,7 @@ class {{module_name.capitalize()}}Module():
         {%- if operation.body_schema == 'JSON' -%}
             json=body,
         {%- elif operation.body_schema == 'FORM' -%}
-            data = aiohttp.FormData(asdict(body)),
+            data=aiohttp.FormData(body.model_dump(by_alias=True)),
         {%- endif -%}
         {%- endif -%}
         ) as resp:

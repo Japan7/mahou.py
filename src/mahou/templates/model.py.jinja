@@ -1,7 +1,6 @@
 {% if dataclasses -%}
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel, Field
 {% endif -%}
-from pydantic import Field
 {% if enums -%}
 from enum import Enum
 {% endif -%}
@@ -20,8 +19,7 @@ class {{enum.name}}(str, Enum):
 {% endfor -%}
 
 {% for dataclass in dataclasses %}
-@dataclass
-class {{dataclass.name}}():
+class {{dataclass.name}}(BaseModel):
 {%- for element in dataclass.required_elements %}
     {{element.name}}{% if element.type %}: {{element.type}}{% endif %}
     {%- if element.alias -%}
