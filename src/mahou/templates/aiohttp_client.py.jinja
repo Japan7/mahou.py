@@ -8,6 +8,7 @@ import json
 
 import aiohttp
 from aiohttp.typedefs import Query
+from pydantic import BaseModel
 from yarl import QueryVariable, SimpleQuery
 
 {% for import in extra_imports -%}
@@ -69,6 +70,8 @@ def prep_serialization(d: dict[str, Any]) -> Query:
 class JsonDataclassEncoder(json.JSONEncoder):
 
     def default(self, o: Any):
+        if isinstance(o, BaseModel):
+            return o.model_dump(by_alias=True)
         if dataclasses.is_dataclass(o) and not isinstance(o, type):
             return dataclasses.asdict(o)
         return super().default(o)
