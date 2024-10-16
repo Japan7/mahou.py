@@ -1,5 +1,5 @@
 {% if dataclasses -%}
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 {% endif -%}
 {% if enums -%}
 from enum import Enum
@@ -20,16 +20,17 @@ class {{enum.name}}(str, Enum):
 
 {% for dataclass in dataclasses %}
 class {{dataclass.name}}(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
 {%- for element in dataclass.required_elements %}
     {{element.name}}{% if element.type %}: {{element.type}}{% endif %}
     {%- if element.alias -%}
-    = Field(alias="{{element.alias}}")
+    = Field(validation_alias="{{element.alias}}", serialization_alias="{{element.alias}}")
     {%- endif %}
 {%- endfor -%}
 {%- for element in dataclass.optional_elements %}
     {{element.name}}{% if element.type %}: {{element.type}} | None{% endif %}
     {%- if element.alias -%}
-    = Field(alias="{{element.alias}}", default=None)
+    = Field(validation_alias="{{element.alias}}", serialization_alias="{{element.alias}}", default=None)
     {%- else -%}
     = None
     {%- endif %}
