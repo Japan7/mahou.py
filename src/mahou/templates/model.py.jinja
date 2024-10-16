@@ -25,13 +25,13 @@ class {{dataclass.name}}():
 {%- for element in dataclass.required_elements %}
     {{element.name}}{% if element.type %}: {{element.type}}{% endif %}
     {%- if element.alias -%}
-    = Field(alias="{{element.alias}}")
+    = Field(serialization_alias="{{element.alias}}")
     {%- endif %}
 {%- endfor -%}
 {%- for element in dataclass.optional_elements %}
     {{element.name}}{% if element.type %}: {{element.type}} | None{% endif %}
     {%- if element.alias -%}
-    = Field(alias="{{element.alias}}", default=None)
+    = Field(serialization_alias="{{element.alias}}", default=None)
     {%- else -%}
     = None
     {%- endif %}
