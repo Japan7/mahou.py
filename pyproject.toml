@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [tool.uv]
-dev-dependencies = ["pyright==1.1.384"]
+dev-dependencies = ["pyright==1.1.385"]
 
 [project.urls]
 Homepage = "https://github.com/Japan7/mahou.py"
