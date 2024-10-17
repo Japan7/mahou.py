@@ -1,9 +1,9 @@
 [project]
 name = "mahou-py"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Parser and Python code generator"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
 authors = [
     { name = "RhiobeT", email = "rhiobet@gmail.com" },
     { name = "NextFire", email = "git@yuru.moe" },
@@ -24,14 +24,17 @@ dependencies = [
 dev-dependencies = ["pyright==1.1.385"]
 
 [project.urls]
-Homepage = "https://github.com/Japan7/mahou.py"
+homepage = "https://github.com/Japan7/mahou.py"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mahou"]
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.pyright]
 pythonVersion = "3.12"
