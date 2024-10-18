@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, Literal, TypeGuard
 
@@ -72,6 +73,8 @@ class JsonDataclassEncoder(json.JSONEncoder):
     def default(self, o: Any):
         if isinstance(o, BaseModel):
             return o.model_dump(by_alias=True)
+        if isinstance(o, datetime):
+            return o.isoformat()
         if dataclasses.is_dataclass(o) and not isinstance(o, type):
             return dataclasses.asdict(o)
         return super().default(o)
