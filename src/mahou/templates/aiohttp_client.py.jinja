@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from enum import Enum
 from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, Literal, TypeGuard
+from uuid import UUID
 
 import dataclasses
 import json
@@ -77,6 +78,8 @@ class JsonDataclassEncoder(json.JSONEncoder):
             return o.isoformat()
         if dataclasses.is_dataclass(o) and not isinstance(o, type):
             return dataclasses.asdict(o)
+        if isinstance(o, UUID):
+            return str(o)
         return super().default(o)
 
 
