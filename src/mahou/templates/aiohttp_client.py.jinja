@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from enum import Enum
@@ -175,13 +175,13 @@ class {{module_name.capitalize()}}Module():
 {% endfor %}
 
 class ClientSession(aiohttp.ClientSession):
-    def __init__(self, server_url: str, *args, **kwargs):
+    def __init__(self, server_url: str, **kwargs):
         super().__init__(*args, **kwargs)
         {% for module in modules -%}
         self.{{module}}: {{module.capitalize()}}Module = {{module.capitalize()}}Module(self, server_url)
         {% endfor %}
 
 {% for server in servers %}
-def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, *args, json_serialize=default_json_serializer, **kwargs) -> ClientSession:
-    return ClientSession(server_url, *args, json_serialize=json_serialize, **kwargs)
+def get{% if server.name %}_{{server.name}}{% endif %}_session(server_url: str, *, json_serialize: Callable[[Any], str] = default_json_serializer, **kwargs) -> ClientSession:
+    return ClientSession(server_url, json_serialize=json_serialize, **kwargs)
 {% endfor %}
