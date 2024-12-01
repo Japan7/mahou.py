@@ -176,7 +176,7 @@ class {{module_name.capitalize()}}Module():
 
 class ClientSession(aiohttp.ClientSession):
     def __init__(self, server_url: str, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         {% for module in modules -%}
         self.{{module}}: {{module.capitalize()}}Module = {{module.capitalize()}}Module(self, server_url)
         {% endfor %}
