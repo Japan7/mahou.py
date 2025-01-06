@@ -149,7 +149,7 @@ wheels = [
 
 [[package]]
 name = "mahou-py"
-version = "0.1.dev242+g9dd8feb"
+version = "0.1.dev243+g85c22ba"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
