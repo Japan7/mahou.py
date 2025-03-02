@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pyright==1.1.395"]
+dev = ["pyright==1.1.396"]
 
 [project.urls]
 homepage = "https://github.com/Japan7/mahou.py"
