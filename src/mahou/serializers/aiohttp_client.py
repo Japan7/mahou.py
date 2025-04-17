@@ -58,6 +58,8 @@ class OpenAPIaiohttpClientSerializer(Serializer[Server]):
                     "name": request.operation_id,
                     "method": request.method.value,
                     "endpoint": path.endpoint,
+                    "summary": request.summary,
+                    "description": request.description,
                     "required_arguments": [],
                     "optional_arguments": [],
                     "responses_success": {},

@@ -79,6 +79,7 @@ class RequestMethod(Enum):
 class Request:
     method: RequestMethod
     summary: str | None
+    description: str | None
     operation_id: str | None
     parameters: list[Parameter]
     responses: dict[int, Schema | None]

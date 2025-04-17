@@ -112,6 +112,9 @@ class {{module_name.capitalize()}}Module():
              Error[Literal[{{resp_code}}], {{resp_res}}]
              {%- if not loop.last %} | {% endif -%}
          {%- endfor %}:
+        {%- if operation.description or operation.summary %}
+        """{{operation.description or operation.summary}}"""
+        {%- endif %}
         url = f'{self.server_url}{{operation.endpoint}}'
 
         {%- if operation.query_parameters %}

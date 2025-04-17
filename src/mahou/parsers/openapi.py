@@ -160,7 +160,8 @@ class OpenAPIParser(Parser[Server]):
         for request_method, request_json in input.items():
             request = Request(
                 method=RequestMethod(request_method),
-                summary=request_json["summary"],
+                summary=request_json.get("summary", None),
+                description=request_json.get("description", None),
                 operation_id=request_json["operationId"],
                 parameters=self.request_parameters_from_json(
                     request_json["parameters"] if "parameters" in request_json else {}
