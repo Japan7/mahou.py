@@ -2,7 +2,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from enum import Enum
-from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, Literal, TypeGuard
+from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, NoReturn, Literal, TypeGuard
 from uuid import UUID
 
 import dataclasses
@@ -26,6 +26,10 @@ from .model import (
 {% endif %}
 
 
+class MahouException(Exception):
+    pass
+
+
 @dataclass(slots=True)
 class Success[TCode, TSuccess]:
     code: TCode
@@ -36,6 +40,9 @@ class Success[TCode, TSuccess]:
 class Error[TCode, TError]:
     code: TCode
     result: TError
+
+    def raise_exc(self) -> NoReturn:
+        raise MahouException(f'{self.code}: {self.result}')
 
 
 def success[S: Success[Any, Any]](maybe: S | Error[Any, Any]) -> TypeGuard[S]:
