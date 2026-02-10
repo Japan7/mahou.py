@@ -2,7 +2,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from enum import Enum
-from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, NoReturn, Literal, TypeIs
+from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, Literal, NoReturn, Self, TypeIs
 from uuid import UUID
 
 import dataclasses
@@ -35,8 +35,8 @@ class Success[TCode, TSuccess]:
     code: TCode
     result: TSuccess
 
-    def raise_exc(self) -> None:
-        pass
+    def raise_exc(self) -> Self:
+        return self
 
 
 @dataclass(slots=True)
