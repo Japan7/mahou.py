@@ -35,6 +35,9 @@ class Success[TCode, TSuccess]:
     code: TCode
     result: TSuccess
 
+    def raise_exc(self) -> None:
+        pass
+
 
 @dataclass(slots=True)
 class Error[TCode, TError]:
