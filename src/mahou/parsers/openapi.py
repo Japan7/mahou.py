@@ -291,6 +291,8 @@ class OpenAPIParser(Parser[Server]):
             return PrimitiveType.BOOL
         elif json_type == "string":
             return PrimitiveType.STR
+        elif json_type == "object":
+            return PrimitiveType.OBJECT
         elif json_type == "null":
             return PrimitiveType.NONE
         else:

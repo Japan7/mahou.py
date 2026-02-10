@@ -7,6 +7,7 @@ class PrimitiveType(Enum):
     FLOAT = "float"
     BOOL = "bool"
     STR = "str"
+    OBJECT = "dict[str, Any]"
     ANY = "Any"
     NONE = "None"
 
