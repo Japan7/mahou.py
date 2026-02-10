@@ -2,7 +2,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from enum import Enum
-from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, NoReturn, Literal, TypeGuard
+from typing import {{need_typing | map('capitalize') | join(', ')}}{% if need_typing %}, {% endif %}Any, NoReturn, Literal, TypeIs
 from uuid import UUID
 
 import dataclasses
@@ -48,7 +48,7 @@ class Error[TCode, TError]:
         raise MahouException(f'{self.code}: {self.result}')
 
 
-def success[S: Success[Any, Any]](maybe: S | Error[Any, Any]) -> TypeGuard[S]:
+def success[S: Success[Any, Any]](maybe: S | Error[Any, Any]) -> TypeIs[S]:
     return isinstance(maybe, Success)
 
 
