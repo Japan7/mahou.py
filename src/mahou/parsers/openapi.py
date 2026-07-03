@@ -43,7 +43,8 @@ class OpenAPIParser(Parser[Server]):
             schemas={},
         )
 
-        server.schemas = self.schemas_from_json(input["components"]["schemas"])
+        components = input.get("components", {})
+        server.schemas = self.schemas_from_json(components.get("schemas", {}))
         server.paths = self.paths_from_json(input["paths"])
 
         return server
