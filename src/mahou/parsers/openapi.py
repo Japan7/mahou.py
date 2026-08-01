@@ -19,6 +19,7 @@ from mahou.models.openapi import (
     Variable,
 )
 from mahou.parsers.abc import Parser
+from mahou.utils import first
 
 
 class OpenAPIParser(Parser[Server]):
@@ -165,7 +166,7 @@ class OpenAPIParser(Parser[Server]):
                 description=request_json.get("description", None),
                 operation_id=request_json["operationId"],
                 parameters=self.request_parameters_from_json(
-                    request_json["parameters"] if "parameters" in request_json else {}
+                    request_json.get("parameters", {})
                 ),
                 responses=self.request_responses_from_json(request_json["responses"]),
                 tags=[],
@@ -180,7 +181,7 @@ class OpenAPIParser(Parser[Server]):
 
     def request_body_from_json(self, input: dict) -> Variable:
         content = input["content"]
-        body_schema = list(content.keys())[0]
+        body_schema = first(content.keys())
         return Variable(
             required=input["required"],
             type=self.lookup_schema_from_json(content[body_schema]["schema"]),

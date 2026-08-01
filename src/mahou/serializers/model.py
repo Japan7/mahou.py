@@ -1,5 +1,6 @@
 import re
 import tempfile
+from typing import override
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -28,9 +29,10 @@ STR_FORMATS_IMPORTS = {
 
 class OpenAPIModelSerializer(Serializer[list[Schema]]):
     def __init__(self):
-        self.need_typing = {}
-        self.extra_imports = set()
+        self.need_typing: dict[str, bool] = {}
+        self.extra_imports: set[str] = set()
 
+    @override
     def serialize(self, input: list[Schema]) -> str:
         enum_forbidden_chars = re.compile("[^a-zA-Z0-9_]")
 
@@ -69,7 +71,7 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
                 if dataclass["name"] not in [d["name"] for d in dataclasses]:
                     dataclasses.append(dataclass)
             else:
-                raise RuntimeError("Unknown schema")
+                raise TypeError(f"Unknown schema {type(schema)}")
 
         jinja_env = Environment(
             loader=PackageLoader("mahou"), autoescape=select_autoescape()
@@ -107,7 +109,7 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
             parsed_type = schema_type.type
             if schema_type.enum:
                 serialized_type = (
-                    f'Literal[{",".join([repr(v) for v in schema_type.enum])}]'
+                    f"Literal[{','.join([repr(v) for v in schema_type.enum])}]"
                 )
                 self.need_typing["literal"] = True
             elif isinstance(parsed_type, PrimitiveType):
@@ -129,7 +131,7 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
             elif isinstance(parsed_type, UnionType):
                 serialized_type = self.serialize_union_type(parsed_type)
             else:
-                raise RuntimeError("Unknown type")
+                raise RuntimeError(f"Unknown type: {type(parsed_type)}")
 
         return serialized_type
 
@@ -145,7 +147,7 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
             elif isinstance(t, Schema):
                 serialized_type_array.append(self.serialize_schema_type(t))
             else:
-                raise RuntimeError("Unknown type")
+                raise TypeError(f"Unknown type {type(t)}")
 
         return " | ".join(serialized_type_array)
 
@@ -162,6 +164,6 @@ class OpenAPIModelSerializer(Serializer[list[Schema]]):
         elif isinstance(items, Schema):
             serialized_type = self.serialize_schema_type(items)
         else:
-            raise RuntimeError("Unknown type")
+            raise TypeError(f"Unknown type {type(items)}")
 
         return f"list[{serialized_type}]"

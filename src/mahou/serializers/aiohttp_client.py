@@ -37,9 +37,9 @@ class ServerDefinition(TypedDict):
 
 class OpenAPIaiohttpClientSerializer(Serializer[Server]):
     def __init__(self):
-        self.need_typing = {}
-        self.model_types = set()
-        self.extra_imports = set()
+        self.need_typing: dict[str, bool] = {}
+        self.model_types: set[str] = set()
+        self.extra_imports: set[str] = set()
 
     @override
     def serialize(self, input: Server) -> str:
@@ -189,7 +189,7 @@ class OpenAPIaiohttpClientSerializer(Serializer[Server]):
             elif isinstance(t, Schema):
                 serialized_type_array.append(self.serialize_schema_type(t))
             else:
-                raise RuntimeError("Unknown type")
+                raise TypeError(f"Unknown type {type(t)}")
 
         return " | ".join(serialized_type_array)
 
@@ -206,6 +206,6 @@ class OpenAPIaiohttpClientSerializer(Serializer[Server]):
         elif isinstance(items, Schema):
             serialized_type = self.serialize_schema_type(items)
         else:
-            raise RuntimeError("Unknown type")
+            raise TypeError(f"Unknown type {type(items)}")
 
         return f"list[{serialized_type}]"

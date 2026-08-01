@@ -1,9 +1,14 @@
 import os
 import re
 import subprocess
+from collections.abc import Iterable
 from keyword import iskeyword
 
 from ruff.__main__ import find_ruff_bin
+
+
+def first[T](it: Iterable[T]):
+    return next(iter(it))
 
 
 def alias_invalid_id(name: str) -> tuple[str, str | None]:
@@ -28,6 +33,7 @@ def ruff_fix(path: str):
             path,
         ],
         capture_output=True,
+        check=True,
     )
     if proc.returncode != 0:
         raise RuntimeError(
@@ -42,6 +48,7 @@ def ruff_format(path: str):
     proc = subprocess.run(
         [os.fsdecode(ruff), "format", path],
         capture_output=True,
+        check=True,
     )
     if proc.returncode != 0:
         raise RuntimeError(
